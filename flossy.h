@@ -92,13 +92,7 @@ namespace {
     {'e', conversion_format::scientific_float}
   };
 
-  template<typename InputIterator>
-  void check_it(InputIterator start, InputIterator end) {
-    if(start == end) {
-      throw format_error("unterminated {");
-    }
-  }
-
+  /* Helper class to parse the conversion options */
   template<typename InputIterator>
   class option_reader {
     typedef typename std::iterator_traits<InputIterator>::value_type char_type;
@@ -137,33 +131,29 @@ namespace {
       }
     }
 
-    inline void read_width() {
+    inline int read_number() {
+      int v = 0;
       for(;;) {
         check_it();
         auto const c = *it;
         if(c >= '0' && c <= '9') {
-          options.width = options.width * 10 + (c - '0');
+          v = v * 10 + (c - '0');
           ++it;
         } else {
-          break;
+          return v;
         }
       }
+    }
+
+    inline void read_width() {
+      options.width = read_number();
     }
 
     inline void read_precision() {
       check_it();
       if(*it == '.') {
         ++it;
-        for(;;) {
-          check_it();
-          auto const c = *it;
-          if(c >= '0' && c <= '9') {
-            options.precision = options.precision * 10 + (c - '0');
-            ++it;
-          } else {
-            break;
-          }
-        }
+        options.precision = read_number();
       }
     }
 

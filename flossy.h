@@ -1,9 +1,9 @@
 #pragma once
 
-#include <regex>
 #include <iterator>
 #include <iostream>
 #include <exception>
+#include <algorithm>
 
 /*
   format: {(align)(sign)(0)(width)(.precision)(type)}
@@ -11,206 +11,199 @@
   sign: [+ ]
   width: [0-9]+
   precision: [0-9]+
-  type: [dobhfe]
+  type: [dobxfe]
 */
 
-#include <algorithm>
 
 namespace flossy {
-
-// Used only for types that allow different representations, i.e. not for strings
-enum class conversion_format {
-  decimal,
-  octal,
-  binary,
-  hex,
-  normal_float,
-  scientific_float,
-  brace,
-  normal,
-  fail
-};
-
-enum class conversion_alignment {
-  left,
-  center,
-  right
-};
-
-enum class conversion_positive_sign {
-  none,
-  plus,
-  space
-};
-
-struct conversion_options {
-  conversion_alignment alignment = conversion_alignment::left;
-  conversion_positive_sign sign = conversion_positive_sign::none;
-  bool zero_fill = false;
-  int width = 0;
-  int precision = 0;
-  conversion_format format = conversion_format::normal;
-};
-
-template<typename CharT>
-const std::basic_regex<CharT> conversion_regex;
 
 class format_error: public std::invalid_argument {
 public:
   using std::invalid_argument::invalid_argument;
 };
 
-/*
-template<typename InputIterator>
-conversion_options read_conversion_options(InputIterator *start, InputIterator end) {
-  typedef typename std::iterator_traits<InputIterator>::value_type char_type;
-
-  static const std::basic_regex<char_type> conversion_regex("^([>_<]?)([-+ ]?)(0?)([0-9]*)(\\.([0-9]+))?([dobxfe]?)(?=\\})");
-
-  std::match_results<InputIterator> match;
-  bool matched = std::regex_search(*start, end, match, conversion_regex);
-
-  if(!matched) {
-    throw format_error("Invalid format string");
-  }
-
-  *start = match.suffix().first;
-}
-*/
-
-
-
-template<typename InputIterator>
-conversion_options read_conversion_options(InputIterator &it, InputIterator end) {
-  conversion_options options;
-
-  enum class step_name {
-    align, sign, fill, width, precision_dot, precision_read, format, close
+namespace {
+  // Used only for types that allow different representations, i.e. not for strings
+  enum class conversion_format {
+    decimal,
+    octal,
+    binary,
+    hex,
+    normal_float,
+    scientific_float,
+    brace,
+    normal,
+    fail
   };
 
-  step_name step = step_name::align;
-  while(it != end) {
+  enum class conversion_alignment {
+    left,
+    center,
+    right
+  };
+
+  enum class conversion_positive_sign {
+    none,
+    plus,
+    space
+  };
+
+  struct conversion_options {
+    conversion_alignment alignment = conversion_alignment::left;
+    conversion_positive_sign sign = conversion_positive_sign::none;
+    bool zero_fill = false;
+    int width = 0;
+    int precision = 0;
+    conversion_format format = conversion_format::normal;
+  };
+
+  template<typename IteratorType, typename CharT, typename ValueT>
+   inline void map_char(IteratorType &it, std::initializer_list<std::pair<CharT, ValueT>> const& values, ValueT &out) noexcept {
     auto const c = *it;
-    switch(step) {
-    case step_name::align:
-      switch(c) {
-      case '_':
-        options.alignment = conversion_alignment::center;
-        ++it;
-        break;
-      case '>':
-        options.alignment = conversion_alignment::right;
-        ++it;
-        break;
-      case 'y':
-        ++it;
-      }
-      step = step_name::sign;
-      break;
+    auto v = std::find_if(values.begin(), values.end(), [=](auto const& a){return a.first == c;});
+    if(v != values.end()) {
+      out = v->second;
+      ++it;
+    }
+  }
 
-    case step_name::sign:
-      switch(c) {
-      case ' ':
-        options.sign = conversion_positive_sign::space;
-        ++it;
-        break;
-      case '+':
-        options.sign = conversion_positive_sign::plus;
-        ++it;
-        break;
-      case '-':
-        ++it;
-      }
-      step = step_name::fill;
-      break;
+  template<typename CharT>
+  const std::initializer_list<std::pair<CharT, conversion_alignment>> alignment_types 
+  {
+    {'_', conversion_alignment::center},
+    {'<', conversion_alignment::left},
+    {'>', conversion_alignment::right}
+  };
 
-    case step_name::fill:
-      if(c == '0') {
+  template<typename CharT>
+  const std::initializer_list<std::pair<CharT, conversion_positive_sign>> sign_types {
+    {' ', conversion_positive_sign::space},
+    {'+', conversion_positive_sign::plus},
+    {'-', conversion_positive_sign::none}
+  };
+
+  template<typename CharT>
+  const std::initializer_list<std::pair<CharT, conversion_format>> format_types {
+    {'d', conversion_format::decimal},
+    {'o', conversion_format::octal},
+    {'b', conversion_format::binary},
+    {'x', conversion_format::hex},
+    {'f', conversion_format::normal_float},
+    {'e', conversion_format::scientific_float}
+  };
+
+  template<typename InputIterator>
+  void check_it(InputIterator start, InputIterator end) {
+    if(start == end) {
+      throw format_error("unterminated {");
+    }
+  }
+
+  template<typename InputIterator>
+  class option_reader {
+    typedef typename std::iterator_traits<InputIterator>::value_type char_type;
+    InputIterator it;
+    InputIterator end;
+  public:
+    inline option_reader(InputIterator start, InputIterator end)
+      : it(start)
+      , end(end) {
+      read_options();  
+    }
+
+    conversion_options options;
+
+    inline void check_it() const {
+      if(it == end) {
+        throw format_error("unterminated {");
+      }
+    }
+
+    inline void read_align() {
+      check_it();
+      map_char(it, alignment_types<char_type>, options.alignment);
+    }
+
+    inline void read_sign() {
+      check_it();
+      map_char(it, sign_types<char_type>, options.sign);
+    }
+
+    inline void read_fill() {
+      check_it();
+      if(*it == '0') {
         ++it;
         options.zero_fill = true;
       }
-      step = step_name::width;
-      break;
-
-    case step_name::width:
-      if(c >= '0' && c <= '9') {
-        options.width = options.width * 10 + (c - '0');
-        ++it;
-      } else {
-        step = step_name::precision_dot;
-      }
-      break;
-
-    case step_name::precision_dot:
-      if(c == '.') {
-        step = step_name::precision_read;
-        ++it;
-      } else {
-        // skip precision, recheck current char
-        step = step_name::format;
-      }
-      break;
-
-    case step_name::precision_read:
-      if(c >= '0' && c <= '9') {
-        options.precision = options.precision * 10 + (c - '0');
-        ++it;
-      } else {
-        step = step_name::format;
-      }
-      break;
-
-    case step_name::format:
-      switch(c) {
-      case 'd':
-        options.format = conversion_format::decimal;
-        ++it;
-        break;
-      case 'o':
-        options.format = conversion_format::octal;
-        ++it;
-        break;
-      case 'b':
-        options.format = conversion_format::binary;
-        ++it;
-        break;
-      case 'x':
-        options.format = conversion_format::hex;
-        ++it;
-        break;
-      case 'f':
-        options.format = conversion_format::normal_float;
-        ++it;
-        break;
-      case 'e':
-        options.format = conversion_format::scientific_float;
-        ++it;
-        break;
-      default:
-        step = step_name::close;
-      }
-      break;
-
-    case step_name::close:
-      if(c == '}') {
-        ++it;
-        return options;
-      } else {
-        throw format_error(std::string("Invalid character in format string: '") + c + "'");
-      }
-      break;
     }
+
+    inline void read_width() {
+      for(;;) {
+        check_it();
+        auto const c = *it;
+        if(c >= '0' && c <= '9') {
+          options.width = options.width * 10 + (c - '0');
+          ++it;
+        } else {
+          break;
+        }
+      }
+    }
+
+    inline void read_precision() {
+      check_it();
+      if(*it == '.') {
+        ++it;
+        for(;;) {
+          check_it();
+          auto const c = *it;
+          if(c >= '0' && c <= '9') {
+            options.precision = options.precision * 10 + (c - '0');
+            ++it;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    inline void read_format() {
+      check_it();
+      map_char(it, format_types<char_type>, options.format);
+    }
+
+    inline void read_options() {
+      read_align();
+      read_sign();
+      read_fill();
+      read_width();
+      read_precision();
+      read_format();
+
+      check_it();
+      if(*it != '}') {
+        throw format_error(std::string("Invalid character in format string: '") + (*it) + "'");
+      }
+    }
+
+  };
+
+  template<typename InputIterator>
+  inline conversion_options read_conversion_options(InputIterator &it, InputIterator end) {
+    return option_reader<InputIterator>(it, end).options;
+  }
+
+  template<typename OutputIterator, typename ValueType>
+  void format_element(OutputIterator *out, conversion_options options, ValueType value) {
+    std::cout << int(options.alignment) << "\n"
+      << int(options.sign) << "\n"
+      << options.zero_fill << "\n"
+      << options.width << "\n"
+      << options.precision << "\n"
+      << int(options.format) << std::endl;
+
   }
 }
-
-template<typename OutputIterator, typename ValueType>
-void format_element(OutputIterator *out, conversion_options options, ValueType value) {
-  **out = '<';
-  ++(*out);
-  **out = '>';
-  ++(*out);
-}
-
 
 template<typename OutputIterator, typename InputIterator>
 void format(OutputIterator out, InputIterator start, InputIterator end) {
@@ -230,17 +223,17 @@ void format(OutputIterator out, InputIterator start, InputIterator end, FirstEle
         } else {
           auto format_end = std::find(start, end, '}');
           if(format_end == end) {
-            //throw format_error("Missing } in format string");
+            throw format_error("Missing } in format string");
           }
-          auto const options = read_conversion_options(start, format_end);
+          ++format_end;
+          auto const options = option_reader<InputIterator>(start, format_end).options;
           start = format_end;
-          ++start;
           format_element(&out, options, first);
           format(out, start, end, elements...);
           return;
         }
       } else {
-        //throw format_error("Invalid format string");
+        throw format_error("Missing } in format string");
       }
     } else {
       *out = c;

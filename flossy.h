@@ -96,10 +96,10 @@ namespace {
   template<typename InputIterator>
   class option_reader {
     typedef typename std::iterator_traits<InputIterator>::value_type char_type;
-    InputIterator it;
-    InputIterator end;
+    InputIterator &it;
+    InputIterator const end;
   public:
-    inline option_reader(InputIterator start, InputIterator end)
+    inline option_reader(InputIterator &start, InputIterator const end)
       : it(start)
       , end(end) {
       read_options();  
@@ -174,14 +174,10 @@ namespace {
       if(*it != '}') {
         throw format_error(std::string("Invalid character in format string: '") + (*it) + "'");
       }
+      ++it;
     }
 
   };
-
-  template<typename InputIterator>
-  inline conversion_options read_conversion_options(InputIterator &it, InputIterator end) {
-    return option_reader<InputIterator>(it, end).options;
-  }
 
   template<typename OutputIterator, typename ValueType>
   void format_element(OutputIterator *out, conversion_options options, ValueType value) {
@@ -196,12 +192,12 @@ namespace {
 }
 
 template<typename OutputIterator, typename InputIterator>
-void format(OutputIterator out, InputIterator start, InputIterator end) {
+void format_it(OutputIterator out, InputIterator start, InputIterator const end) {
   std::copy(start, end, out);
 }
 
 template<typename OutputIterator, typename InputIterator, typename FirstElement, typename... ElementTypes>
-void format(OutputIterator out, InputIterator start, InputIterator end, FirstElement first, ElementTypes... elements) {
+void format_it(OutputIterator out, InputIterator start, InputIterator const end, FirstElement const& first, ElementTypes... elements) {
   while(start != end) {
     auto const c = *start;
     if(c == '{') {
@@ -211,15 +207,9 @@ void format(OutputIterator out, InputIterator start, InputIterator end, FirstEle
           *out = '{';
           ++out;
         } else {
-          auto format_end = std::find(start, end, '}');
-          if(format_end == end) {
-            throw format_error("Missing } in format string");
-          }
-          ++format_end;
-          auto const options = option_reader<InputIterator>(start, format_end).options;
-          start = format_end;
+          auto const options = option_reader<InputIterator>(start, end).options;
           format_element(&out, options, first);
-          format(out, start, end, elements...);
+          format_it(out, start, end, elements...);
           return;
         }
       } else {
@@ -237,7 +227,7 @@ void format(OutputIterator out, InputIterator start, InputIterator end, FirstEle
 template<typename... ElementTypes>
 std::string format(std::string format_str, ElementTypes... elements) {
   std::string result;
-  format(std::back_inserter(result), format_str.begin(), format_str.end(), elements...);
+  format_it(std::back_inserter(result), format_str.begin(), format_str.end(), elements...);
   return result;
 }
 

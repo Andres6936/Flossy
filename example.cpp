@@ -5,5 +5,5 @@
 
 int main() {
 
-  flossy::format(std::cout, "Hallo{<+07.5f", 10, 20, 30);
+  flossy::format(std::cout, "Hallo{<+07.5f}blublub", 10, 20, 30);
 }

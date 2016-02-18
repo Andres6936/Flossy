@@ -192,22 +192,29 @@ namespace {
 
 template<typename OutputIterator, typename InputIterator>
 void format_it(OutputIterator out, InputIterator start, InputIterator const end) {
+  // If there are not value left to convert, just copy the rest of the input.
+  // Ignore further conversion specifiers.
+
   std::copy(start, end, out);
 }
 
 /* Generic formatting function using interators */
 template<typename OutputIterator, typename InputIterator, typename FirstElement, typename... ElementTypes>
 void format_it(OutputIterator out, InputIterator start, InputIterator const end, FirstElement const& first, ElementTypes... elements) {
+  // Copy everything from start to the beginning of the first "real" (i.e. not '{{') conversion
+  // specifier to out, transforming {{ into { appropriately.
+  // Read conversion specifier, convert one element and recurse to format the rest.
+
   for(;start != end; ++start) {
     auto c = *start;
+
     if(c == '{') {
       ensure_not_equal(++start, end);
 
       if(*start != '{') {
         auto const options = option_reader<InputIterator>(start, end).options;
         format_element(out, options, first);
-        format_it(out, start, end, elements...);
-        return;
+        return format_it(out, start, end, elements...);
       }
 
       c = '{';

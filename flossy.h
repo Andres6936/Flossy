@@ -1,7 +1,7 @@
 #pragma once
 
-#include <iterator>
 #include <iostream>
+#include <iterator>
 #include <exception>
 #include <algorithm>
 
@@ -49,53 +49,47 @@ namespace {
   };
 
   struct conversion_options {
-    conversion_alignment alignment = conversion_alignment::left;
-    conversion_positive_sign sign = conversion_positive_sign::none;
-    bool zero_fill = false;
-    int width = 0;
-    int precision = 0;
-    conversion_format format = conversion_format::normal;
+    conversion_alignment     alignment = conversion_alignment::left;
+    conversion_positive_sign sign      = conversion_positive_sign::none;
+    bool                     zero_fill = false;
+    int                      width     = 0;
+    int                      precision = 0;
+    conversion_format        format    = conversion_format::normal;
   };
 
-  template<typename IteratorType, typename CharT, typename ValueT>
-   inline void map_char(IteratorType &it, std::initializer_list<std::pair<CharT, ValueT>> const& values, ValueT &out) noexcept {
-    auto const c = *it;
-    auto v = std::find_if(values.begin(), values.end(), [=](auto const& a){return a.first == c;});
-    if(v != values.end()) {
-      out = v->second;
-      ++it;
+  template<typename InputIterator>
+  inline void ensure_not_equal(InputIterator const& a, InputIterator const& b) {
+    if(a == b) {
+      throw format_error("unterminated {");
     }
   }
-
-  template<typename CharT>
-  const std::initializer_list<std::pair<CharT, conversion_alignment>> alignment_types 
-  {
-    {'_', conversion_alignment::center},
-    {'<', conversion_alignment::left},
-    {'>', conversion_alignment::right}
-  };
-
-  template<typename CharT>
-  const std::initializer_list<std::pair<CharT, conversion_positive_sign>> sign_types {
-    {' ', conversion_positive_sign::space},
-    {'+', conversion_positive_sign::plus},
-    {'-', conversion_positive_sign::none}
-  };
-
-  template<typename CharT>
-  const std::initializer_list<std::pair<CharT, conversion_format>> format_types {
-    {'d', conversion_format::decimal},
-    {'o', conversion_format::octal},
-    {'b', conversion_format::binary},
-    {'x', conversion_format::hex},
-    {'f', conversion_format::normal_float},
-    {'e', conversion_format::scientific_float}
-  };
 
   /* Helper class to parse the conversion options */
   template<typename InputIterator>
   class option_reader {
     typedef typename std::iterator_traits<InputIterator>::value_type char_type;
+
+    const std::initializer_list<std::pair<char_type, conversion_alignment>> alignment_types {
+      {'_', conversion_alignment::center},
+      {'<', conversion_alignment::left},
+      {'>', conversion_alignment::right}
+    };
+
+    const std::initializer_list<std::pair<char_type, conversion_positive_sign>> sign_types {
+      {' ', conversion_positive_sign::space},
+      {'+', conversion_positive_sign::plus},
+      {'-', conversion_positive_sign::none}
+    };
+
+    const std::initializer_list<std::pair<char_type, conversion_format>> format_types {
+      {'d', conversion_format::decimal},
+      {'o', conversion_format::octal},
+      {'b', conversion_format::binary},
+      {'x', conversion_format::hex},
+      {'f', conversion_format::normal_float},
+      {'e', conversion_format::scientific_float}
+    };
+
     InputIterator &it;
     InputIterator const end;
   public:
@@ -108,19 +102,26 @@ namespace {
     conversion_options options;
 
     inline void check_it() const {
-      if(it == end) {
-        throw format_error("unterminated {");
+      ensure_not_equal(it, end);
+    }
+
+    template<typename ValueT>
+    inline void map_char(std::initializer_list<std::pair<char_type, ValueT>> const& values, ValueT &out) {
+      check_it();
+      auto const c = *it;
+      auto v = std::find_if(values.begin(), values.end(), [=](auto const& a){return a.first == c;});
+      if(v != values.end()) {
+        out = v->second;
+        ++it;
       }
     }
 
     inline void read_align() {
-      check_it();
-      map_char(it, alignment_types<char_type>, options.alignment);
+      map_char(alignment_types, options.alignment);
     }
 
     inline void read_sign() {
-      check_it();
-      map_char(it, sign_types<char_type>, options.sign);
+      map_char(sign_types, options.sign);
     }
 
     inline void read_fill() {
@@ -158,8 +159,7 @@ namespace {
     }
 
     inline void read_format() {
-      check_it();
-      map_char(it, format_types<char_type>, options.format);
+      map_char(format_types, options.format);
     }
 
     inline void read_options() {
@@ -172,23 +172,22 @@ namespace {
 
       check_it();
       if(*it != '}') {
-        throw format_error(std::string("Invalid character in format string: '") + (*it) + "'");
+        throw format_error("Invalid character in format string");
       }
       ++it;
     }
-
   };
 
   template<typename OutputIterator, typename ValueType>
-  void format_element(OutputIterator *out, conversion_options options, ValueType value) {
+  void format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
     std::cout << int(options.alignment) << "\n"
       << int(options.sign) << "\n"
       << options.zero_fill << "\n"
       << options.width << "\n"
       << options.precision << "\n"
       << int(options.format) << std::endl;
-
   }
+
 }
 
 template<typename OutputIterator, typename InputIterator>
@@ -196,39 +195,51 @@ void format_it(OutputIterator out, InputIterator start, InputIterator const end)
   std::copy(start, end, out);
 }
 
+/* Generic formatting function using interators */
 template<typename OutputIterator, typename InputIterator, typename FirstElement, typename... ElementTypes>
 void format_it(OutputIterator out, InputIterator start, InputIterator const end, FirstElement const& first, ElementTypes... elements) {
-  while(start != end) {
-    auto const c = *start;
+  for(;start != end; ++start) {
+    auto c = *start;
     if(c == '{') {
-      ++start;
-      if(start != end) {
-        if(*start == '{') {
-          *out = '{';
-          ++out;
-        } else {
-          auto const options = option_reader<InputIterator>(start, end).options;
-          format_element(&out, options, first);
-          format_it(out, start, end, elements...);
-          return;
-        }
-      } else {
-        throw format_error("Missing } in format string");
-      }
-    } else {
-      *out = c;
-      ++(*out);
-    }
+      ensure_not_equal(++start, end);
 
-    ++start;
+      if(*start != '{') {
+        auto const options = option_reader<InputIterator>(start, end).options;
+        format_element(out, options, first);
+        format_it(out, start, end, elements...);
+        return;
+      }
+
+      c = '{';
+    } 
+
+    *out++ = c;
   }
 }
 
-template<typename... ElementTypes>
-std::string format(std::string format_str, ElementTypes... elements) {
-  std::string result;
+
+/* Returns the formatted string */
+template<typename CharT, typename... ElementTypes>
+std::basic_string<CharT> format(std::basic_string<CharT> const & format_str, ElementTypes... elements) {
+  std::basic_string<CharT> result;
   format_it(std::back_inserter(result), format_str.begin(), format_str.end(), elements...);
   return result;
+}
+
+template<typename CharT, typename... ElementTypes>
+std::basic_string<CharT> format(CharT const* format_str, ElementTypes... elements) {
+  return format(std::basic_string<CharT>(format_str), elements...);
+}
+
+/* Allows output formatting string directly to ostream, without extra buffering */
+template<typename CharT, typename Traits, typename... ElementTypes>
+void format(std::basic_ostream<CharT, Traits> &ostream, std::basic_string<CharT> const& format_str, ElementTypes... elements) {
+  format_it(std::ostream_iterator<CharT>(ostream), format_str.begin(), format_str.end(), elements...);
+}
+
+template<typename CharT, typename Traits, typename... ElementTypes>
+void format(std::basic_ostream<CharT, Traits> &ostream, CharT const* format_str, ElementTypes... elements) {
+  format(ostream, std::basic_string<CharT>(format_str), elements...);
 }
 
 }

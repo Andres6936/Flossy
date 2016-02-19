@@ -43,8 +43,8 @@ namespace {
   };
 
   struct conversion_options {
-    unsigned                 width     = 0;
-    unsigned                 precision = 6;
+    int                      width     = 0;
+    int                      precision = 6;
     conversion_alignment     alignment = conversion_alignment::left;
     conversion_format        format    = conversion_format::normal;
     bool                     sign      = false;
@@ -185,12 +185,10 @@ namespace {
 
     std::basic_stringstream<CharT> tmp(std::ios_base::out);
 
-    ValueType av = std::copysign(value, ValueType(1.0));
-
     switch(options.format) {
     case conversion_format::normal_float:
       {
-        int ex = int(std::log10(av));
+        int ex = int(std::log10(std::copysign(value, ValueType(1.0))));
         if(ex < -4 || ex >= options.precision) {
           tmp << std::scientific;
         } else {
@@ -206,30 +204,22 @@ namespace {
       tmp << std::fixed;
       break;
     };
+
     tmp << std::setprecision(options.precision);
-    tmp << av;
+    tmp << std::setw(options.width);
+
+    if(options.zero_fill) {
+      tmp << std::setfill('0') << std::internal;
+    }
+
+    if(options.sign) {
+      tmp << std::showpos;
+    }
+
+    tmp << value;
+
     auto const str = tmp.str();
-    size_t len = str.length();
-    if(options.sign || value < ValueType(0.0)) {
-      ++len;
-    }
-
-    if(len < options.width && options.alignment == conversion_alignment::right) {
-      char fill = options.zero_fill ? '0' : ' ';
-      for(unsigned i = len; i < options.width; ++i) {
-        *(out++) = fill;
-      }
-    }
-
     std::copy(str.begin(), str.end(), out);
-
-    if(len < options.width && options.alignment == conversion_alignment::left) {
-      for(unsigned i = len; i < options.width; ++i) {
-        *(out++) = ' ';
-      }
-    }
-
-
   }
 
   template<typename CharT, typename OutputIterator, typename ValueType>

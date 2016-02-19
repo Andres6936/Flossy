@@ -1,9 +1,11 @@
 #pragma once
 
 #include <iostream>
+#include <iomanip>
 #include <iterator>
 #include <exception>
 #include <algorithm>
+#include <sstream>
 
 /*
   format: {(align)(sign)(0)(width)(.precision)(type)}
@@ -31,30 +33,23 @@ namespace {
     hex,
     normal_float,
     scientific_float,
-    brace,
     normal,
     fail
   };
 
   enum class conversion_alignment {
     left,
-    center,
     right
   };
 
-  enum class conversion_positive_sign {
-    none,
-    plus,
-    space
-  };
-
   struct conversion_options {
+    unsigned                 width     = 0;
+    unsigned                 precision = 6;
     conversion_alignment     alignment = conversion_alignment::left;
-    conversion_positive_sign sign      = conversion_positive_sign::none;
-    bool                     zero_fill = false;
-    int                      width     = 0;
-    int                      precision = 0;
     conversion_format        format    = conversion_format::normal;
+    bool                     sign      = false;
+    bool                     zero_fill = false;
+    bool                     prec_expl = false;
   };
 
   template<typename InputIterator>
@@ -70,15 +65,12 @@ namespace {
     typedef typename std::iterator_traits<InputIterator>::value_type char_type;
 
     const std::initializer_list<std::pair<char_type, conversion_alignment>> alignment_types {
-      {'_', conversion_alignment::center},
       {'<', conversion_alignment::left},
       {'>', conversion_alignment::right}
     };
 
-    const std::initializer_list<std::pair<char_type, conversion_positive_sign>> sign_types {
-      {' ', conversion_positive_sign::space},
-      {'+', conversion_positive_sign::plus},
-      {'-', conversion_positive_sign::none}
+    const std::initializer_list<std::pair<char_type, bool>> sign_types {
+      {'+', true},
     };
 
     const std::initializer_list<std::pair<char_type, conversion_format>> format_types {
@@ -86,8 +78,9 @@ namespace {
       {'o', conversion_format::octal},
       {'b', conversion_format::binary},
       {'x', conversion_format::hex},
-      {'f', conversion_format::normal_float},
-      {'e', conversion_format::scientific_float}
+      {'e', conversion_format::scientific_float},
+      {'f', conversion_format::normal},
+      {'g', conversion_format::normal_float}
     };
 
     InputIterator &it;
@@ -155,6 +148,7 @@ namespace {
       if(*it == '.') {
         ++it;
         options.precision = read_number();
+        options.prec_expl = true;
       }
     }
 
@@ -178,16 +172,74 @@ namespace {
     }
   };
 
-  template<typename OutputIterator, typename ValueType>
-  void format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
-    std::cout << int(options.alignment) << "\n"
-      << int(options.sign) << "\n"
-      << options.zero_fill << "\n"
-      << options.width << "\n"
-      << options.precision << "\n"
-      << int(options.format) << std::endl;
+  template<typename CharT, typename OutputIterator, typename ValueType>
+  typename std::enable_if<std::is_floating_point<ValueType>::value>::type
+  format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
+    /*
+      Float to string is a /
+      pretty complicated thing. /
+      Better use a lib.
+
+      Even if it means some extra copies.
+    */
+
+    std::basic_stringstream<CharT> tmp(std::ios_base::out);
+
+    ValueType av = std::copysign(value, ValueType(1.0));
+
+    switch(options.format) {
+    case conversion_format::normal_float:
+      {
+        int ex = int(std::log10(av));
+        if(ex < -4 || ex >= options.precision) {
+          tmp << std::scientific;
+        } else {
+          tmp << std::fixed;
+        }
+      }
+      break;
+    case conversion_format::scientific_float:
+      tmp << std::scientific;
+      break;
+    case conversion_format::normal:
+    default:
+      tmp << std::fixed;
+      break;
+    };
+    tmp << std::setprecision(options.precision);
+    tmp << av;
+    auto const str = tmp.str();
+    size_t len = str.length();
+    if(options.sign || value < ValueType(0.0)) {
+      ++len;
+    }
+
+    if(len < options.width && options.alignment == conversion_alignment::right) {
+      char fill = options.zero_fill ? '0' : ' ';
+      for(unsigned i = len; i < options.width; ++i) {
+        *(out++) = fill;
+      }
+    }
+
+    std::copy(str.begin(), str.end(), out);
+
+    if(len < options.width && options.alignment == conversion_alignment::left) {
+      for(unsigned i = len; i < options.width; ++i) {
+        *(out++) = ' ';
+      }
+    }
+
+
   }
 
+  template<typename CharT, typename OutputIterator, typename ValueType>
+  typename std::enable_if<std::is_integral<ValueType>::value>::type
+  format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
+    std::basic_stringstream<CharT> tmp(std::ios_base::out);
+    tmp << value;
+    auto const str = tmp.str();
+    std::copy(str.begin(), str.end(), out);
+  }
 }
 
 template<typename OutputIterator, typename InputIterator>
@@ -213,7 +265,7 @@ void format_it(OutputIterator out, InputIterator start, InputIterator const end,
 
       if(*start != '{') {
         auto const options = option_reader<InputIterator>(start, end).options;
-        format_element(out, options, first);
+        format_element<typename std::iterator_traits<InputIterator>::value_type>(out, options, first);
         return format_it(out, start, end, elements...);
       }
 

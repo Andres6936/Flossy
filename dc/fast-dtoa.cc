@@ -4,33 +4,14 @@
 #include <cstdint>
 #include <stdarg.h>
 #include <cmath>
+#include <limits>
+
+static_assert(std::numeric_limits<double>::is_iec559, "Double type is not IEEE 754 compliant.");
+static_assert(std::numeric_limits<float>::is_iec559, "Float type is not IEEE 754 compliant.");
 
 [[noreturn]] inline void unreachable() {
   abort();
 }
-
-#if defined(_M_X64) || defined(__x86_64__) || \
-    defined(__ARMEL__) || defined(__avr32__) || \
-    defined(__hppa__) || defined(__ia64__) || \
-    defined(__mips__) || \
-    defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__) || \
-    defined(_POWER) || defined(_ARCH_PPC) || defined(_ARCH_PPC64) || \
-    defined(__sparc__) || defined(__sparc) || defined(__s390__) || \
-    defined(__SH4__) || defined(__alpha__) || \
-    defined(_MIPS_ARCH_MIPS32R2) || \
-    defined(__AARCH64EL__) || defined(__aarch64__)
-  #define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
-#elif defined(__mc68000__)
-  #undef DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS
-#elif defined(_M_IX86) || defined(__i386__) || defined(__i386)
-  #if defined(_WIN32)
-    #define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
-  #else
-    #undef DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS
-  #endif
-#else
-  #error Target architecture was not detected as supported by Double-Conversion.
-#endif
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a)                                   \
@@ -41,34 +22,21 @@
 
 template <typename T>
 class Vector {
- public:
-  Vector() : start_(NULL), length_(0) {}
-  Vector(T* data, int len) : start_(data), length_(len) {
+  T* start;
+  int length;
+
+public:
+  Vector(T* data, int len)
+    : start(data)
+    , length(len) {
+    
     assert(len == 0 || (len > 0 && data != NULL));
   }
-  Vector<T> SubVector(int from, int to) {
-    assert(to <= length_);
-    assert(from < to);
-    assert(0 <= from);
-    return Vector<T>(start() + from, to - from);
-  }
-
-  int length() const { return length_; }
-
-  T* start() const { return start_; }
 
   T& operator[](int index) const {
-    assert(0 <= index && index < length_);
-    return start_[index];
+    assert(0 <= index && index < length);
+    return start[index];
   }
-
-  T& first() { return start_[0]; }
-
-  T& last() { return start_[length_ - 1]; }
-
- private:
-  T* start_;
-  int length_;
 };
 
 class DiyFp {
@@ -91,7 +59,22 @@ class DiyFp {
   }
 
 
-  void Multiply(const DiyFp& other);
+  void Multiply(const DiyFp& other) {
+    const uint64_t kM32 = 0xFFFFFFFFU;
+    uint64_t a = f_ >> 32;
+    uint64_t b = f_ & kM32;
+    uint64_t c = other.f_ >> 32;
+    uint64_t d = other.f_ & kM32;
+    uint64_t ac = a * c;
+    uint64_t bc = b * c;
+    uint64_t ad = a * d;
+    uint64_t bd = b * d;
+    uint64_t tmp = (bd >> 32) + (ad & kM32) + (bc & kM32);
+    tmp += 1U << 31;
+    uint64_t result_f = ac + (ad >> 32) + (bc >> 32) + (tmp >> 32);
+    e_ += other.e_ + 64;
+    f_ = result_f;
+  }
 
   static DiyFp Times(const DiyFp& a, const DiyFp& b) {
     DiyFp result = a;
@@ -138,7 +121,7 @@ class DiyFp {
 
 
 template <class Dest, class Source>
-inline Dest BitCast(const Source& source) {
+inline Dest bit_cast(const Source& source) {
   static_assert(sizeof(Dest) == sizeof(Source), "Dest and Source need to have the same size");
 
   Dest dest;
@@ -156,130 +139,108 @@ enum FastDtoaMode {
 static const int kFastDtoaMaximalLength = 17;
 static const int kFastDtoaMaximalSingleLength = 9;
 
-
 struct CachedPower {
   uint64_t significand;
   int16_t binary_exponent;
   int16_t decimal_exponent;
 };
 
-class PowersOfTenCache {
- public:
+inline void GetCachedPowerForBinaryExponentRange(int min_exponent, int max_exponent, DiyFp* power, int* decimal_exponent) {
+  static const CachedPower kCachedPowers[] = {
+    {0xfa8fd5a0081c0288ULL, -1220, -348},
+    {0xbaaee17fa23ebf76ULL, -1193, -340},
+    {0x8b16fb203055ac76ULL, -1166, -332},
+    {0xcf42894a5dce35eaULL, -1140, -324},
+    {0x9a6bb0aa55653b2dULL, -1113, -316},
+    {0xe61acf033d1a45dfULL, -1087, -308},
+    {0xab70fe17c79ac6caULL, -1060, -300},
+    {0xff77b1fcbebcdc4fULL, -1034, -292},
+    {0xbe5691ef416bd60cULL, -1007, -284},
+    {0x8dd01fad907ffc3cULL, -980, -276},
+    {0xd3515c2831559a83ULL, -954, -268},
+    {0x9d71ac8fada6c9b5ULL, -927, -260},
+    {0xea9c227723ee8bcbULL, -901, -252},
+    {0xaecc49914078536dULL, -874, -244},
+    {0x823c12795db6ce57ULL, -847, -236},
+    {0xc21094364dfb5637ULL, -821, -228},
+    {0x9096ea6f3848984fULL, -794, -220},
+    {0xd77485cb25823ac7ULL, -768, -212},
+    {0xa086cfcd97bf97f4ULL, -741, -204},
+    {0xef340a98172aace5ULL, -715, -196},
+    {0xb23867fb2a35b28eULL, -688, -188},
+    {0x84c8d4dfd2c63f3bULL, -661, -180},
+    {0xc5dd44271ad3cdbaULL, -635, -172},
+    {0x936b9fcebb25c996ULL, -608, -164},
+    {0xdbac6c247d62a584ULL, -582, -156},
+    {0xa3ab66580d5fdaf6ULL, -555, -148},
+    {0xf3e2f893dec3f126ULL, -529, -140},
+    {0xb5b5ada8aaff80b8ULL, -502, -132},
+    {0x87625f056c7c4a8bULL, -475, -124},
+    {0xc9bcff6034c13053ULL, -449, -116},
+    {0x964e858c91ba2655ULL, -422, -108},
+    {0xdff9772470297ebdULL, -396, -100},
+    {0xa6dfbd9fb8e5b88fULL, -369, -92},
+    {0xf8a95fcf88747d94ULL, -343, -84},
+    {0xb94470938fa89bcfULL, -316, -76},
+    {0x8a08f0f8bf0f156bULL, -289, -68},
+    {0xcdb02555653131b6ULL, -263, -60},
+    {0x993fe2c6d07b7facULL, -236, -52},
+    {0xe45c10c42a2b3b06ULL, -210, -44},
+    {0xaa242499697392d3ULL, -183, -36},
+    {0xfd87b5f28300ca0eULL, -157, -28},
+    {0xbce5086492111aebULL, -130, -20},
+    {0x8cbccc096f5088ccULL, -103, -12},
+    {0xd1b71758e219652cULL, -77, -4},
+    {0x9c40000000000000ULL, -50, 4},
+    {0xe8d4a51000000000ULL, -24, 12},
+    {0xad78ebc5ac620000ULL, 3, 20},
+    {0x813f3978f8940984ULL, 30, 28},
+    {0xc097ce7bc90715b3ULL, 56, 36},
+    {0x8f7e32ce7bea5c70ULL, 83, 44},
+    {0xd5d238a4abe98068ULL, 109, 52},
+    {0x9f4f2726179a2245ULL, 136, 60},
+    {0xed63a231d4c4fb27ULL, 162, 68},
+    {0xb0de65388cc8ada8ULL, 189, 76},
+    {0x83c7088e1aab65dbULL, 216, 84},
+    {0xc45d1df942711d9aULL, 242, 92},
+    {0x924d692ca61be758ULL, 269, 100},
+    {0xda01ee641a708deaULL, 295, 108},
+    {0xa26da3999aef774aULL, 322, 116},
+    {0xf209787bb47d6b85ULL, 348, 124},
+    {0xb454e4a179dd1877ULL, 375, 132},
+    {0x865b86925b9bc5c2ULL, 402, 140},
+    {0xc83553c5c8965d3dULL, 428, 148},
+    {0x952ab45cfa97a0b3ULL, 455, 156},
+    {0xde469fbd99a05fe3ULL, 481, 164},
+    {0xa59bc234db398c25ULL, 508, 172},
+    {0xf6c69a72a3989f5cULL, 534, 180},
+    {0xb7dcbf5354e9beceULL, 561, 188},
+    {0x88fcf317f22241e2ULL, 588, 196},
+    {0xcc20ce9bd35c78a5ULL, 614, 204},
+    {0x98165af37b2153dfULL, 641, 212},
+    {0xe2a0b5dc971f303aULL, 667, 220},
+    {0xa8d9d1535ce3b396ULL, 694, 228},
+    {0xfb9b7cd9a4a7443cULL, 720, 236},
+    {0xbb764c4ca7a44410ULL, 747, 244},
+    {0x8bab8eefb6409c1aULL, 774, 252},
+    {0xd01fef10a657842cULL, 800, 260},
+    {0x9b10a4e5e9913129ULL, 827, 268},
+    {0xe7109bfba19c0c9dULL, 853, 276},
+    {0xac2820d9623bf429ULL, 880, 284},
+    {0x80444b5e7aa7cf85ULL, 907, 292},
+    {0xbf21e44003acdd2dULL, 933, 300},
+    {0x8e679c2f5e44ff8fULL, 960, 308},
+    {0xd433179d9c8cb841ULL, 986, 316},
+    {0x9e19db92b4e31ba9ULL, 1013, 324},
+    {0xeb96bf6ebadf77d9ULL, 1039, 332},
+    {0xaf87023b9bf0ee6bULL, 1066, 340},
+  };
 
-  static const int kDecimalExponentDistance;
-
-  static const int kMinDecimalExponent;
-  static const int kMaxDecimalExponent;
-
-  static void GetCachedPowerForBinaryExponentRange(int min_exponent,
-                                                   int max_exponent,
-                                                   DiyFp* power,
-                                                   int* decimal_exponent);
-};
-
-static const CachedPower kCachedPowers[] = {
-  {0xfa8fd5a0081c0288ULL, -1220, -348},
-  {0xbaaee17fa23ebf76ULL, -1193, -340},
-  {0x8b16fb203055ac76ULL, -1166, -332},
-  {0xcf42894a5dce35eaULL, -1140, -324},
-  {0x9a6bb0aa55653b2dULL, -1113, -316},
-  {0xe61acf033d1a45dfULL, -1087, -308},
-  {0xab70fe17c79ac6caULL, -1060, -300},
-  {0xff77b1fcbebcdc4fULL, -1034, -292},
-  {0xbe5691ef416bd60cULL, -1007, -284},
-  {0x8dd01fad907ffc3cULL, -980, -276},
-  {0xd3515c2831559a83ULL, -954, -268},
-  {0x9d71ac8fada6c9b5ULL, -927, -260},
-  {0xea9c227723ee8bcbULL, -901, -252},
-  {0xaecc49914078536dULL, -874, -244},
-  {0x823c12795db6ce57ULL, -847, -236},
-  {0xc21094364dfb5637ULL, -821, -228},
-  {0x9096ea6f3848984fULL, -794, -220},
-  {0xd77485cb25823ac7ULL, -768, -212},
-  {0xa086cfcd97bf97f4ULL, -741, -204},
-  {0xef340a98172aace5ULL, -715, -196},
-  {0xb23867fb2a35b28eULL, -688, -188},
-  {0x84c8d4dfd2c63f3bULL, -661, -180},
-  {0xc5dd44271ad3cdbaULL, -635, -172},
-  {0x936b9fcebb25c996ULL, -608, -164},
-  {0xdbac6c247d62a584ULL, -582, -156},
-  {0xa3ab66580d5fdaf6ULL, -555, -148},
-  {0xf3e2f893dec3f126ULL, -529, -140},
-  {0xb5b5ada8aaff80b8ULL, -502, -132},
-  {0x87625f056c7c4a8bULL, -475, -124},
-  {0xc9bcff6034c13053ULL, -449, -116},
-  {0x964e858c91ba2655ULL, -422, -108},
-  {0xdff9772470297ebdULL, -396, -100},
-  {0xa6dfbd9fb8e5b88fULL, -369, -92},
-  {0xf8a95fcf88747d94ULL, -343, -84},
-  {0xb94470938fa89bcfULL, -316, -76},
-  {0x8a08f0f8bf0f156bULL, -289, -68},
-  {0xcdb02555653131b6ULL, -263, -60},
-  {0x993fe2c6d07b7facULL, -236, -52},
-  {0xe45c10c42a2b3b06ULL, -210, -44},
-  {0xaa242499697392d3ULL, -183, -36},
-  {0xfd87b5f28300ca0eULL, -157, -28},
-  {0xbce5086492111aebULL, -130, -20},
-  {0x8cbccc096f5088ccULL, -103, -12},
-  {0xd1b71758e219652cULL, -77, -4},
-  {0x9c40000000000000ULL, -50, 4},
-  {0xe8d4a51000000000ULL, -24, 12},
-  {0xad78ebc5ac620000ULL, 3, 20},
-  {0x813f3978f8940984ULL, 30, 28},
-  {0xc097ce7bc90715b3ULL, 56, 36},
-  {0x8f7e32ce7bea5c70ULL, 83, 44},
-  {0xd5d238a4abe98068ULL, 109, 52},
-  {0x9f4f2726179a2245ULL, 136, 60},
-  {0xed63a231d4c4fb27ULL, 162, 68},
-  {0xb0de65388cc8ada8ULL, 189, 76},
-  {0x83c7088e1aab65dbULL, 216, 84},
-  {0xc45d1df942711d9aULL, 242, 92},
-  {0x924d692ca61be758ULL, 269, 100},
-  {0xda01ee641a708deaULL, 295, 108},
-  {0xa26da3999aef774aULL, 322, 116},
-  {0xf209787bb47d6b85ULL, 348, 124},
-  {0xb454e4a179dd1877ULL, 375, 132},
-  {0x865b86925b9bc5c2ULL, 402, 140},
-  {0xc83553c5c8965d3dULL, 428, 148},
-  {0x952ab45cfa97a0b3ULL, 455, 156},
-  {0xde469fbd99a05fe3ULL, 481, 164},
-  {0xa59bc234db398c25ULL, 508, 172},
-  {0xf6c69a72a3989f5cULL, 534, 180},
-  {0xb7dcbf5354e9beceULL, 561, 188},
-  {0x88fcf317f22241e2ULL, 588, 196},
-  {0xcc20ce9bd35c78a5ULL, 614, 204},
-  {0x98165af37b2153dfULL, 641, 212},
-  {0xe2a0b5dc971f303aULL, 667, 220},
-  {0xa8d9d1535ce3b396ULL, 694, 228},
-  {0xfb9b7cd9a4a7443cULL, 720, 236},
-  {0xbb764c4ca7a44410ULL, 747, 244},
-  {0x8bab8eefb6409c1aULL, 774, 252},
-  {0xd01fef10a657842cULL, 800, 260},
-  {0x9b10a4e5e9913129ULL, 827, 268},
-  {0xe7109bfba19c0c9dULL, 853, 276},
-  {0xac2820d9623bf429ULL, 880, 284},
-  {0x80444b5e7aa7cf85ULL, 907, 292},
-  {0xbf21e44003acdd2dULL, 933, 300},
-  {0x8e679c2f5e44ff8fULL, 960, 308},
-  {0xd433179d9c8cb841ULL, 986, 316},
-  {0x9e19db92b4e31ba9ULL, 1013, 324},
-  {0xeb96bf6ebadf77d9ULL, 1039, 332},
-  {0xaf87023b9bf0ee6bULL, 1066, 340},
-};
-
-static const int kCachedPowersOffset = 348;
-static const double kD_1_LOG2_10 = 0.30102999566398114;
-const int PowersOfTenCache::kDecimalExponentDistance = 8;
-const int PowersOfTenCache::kMinDecimalExponent = -348;
-const int PowersOfTenCache::kMaxDecimalExponent = 340;
-
-void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
-    int min_exponent,
-    int max_exponent,
-    DiyFp* power,
-    int* decimal_exponent) {
+  static const int kDecimalExponentDistance = 8;
   int kQ = DiyFp::kSignificandSize;
+  static const double kD_1_LOG2_10 = 0.30102999566398114;
   double k = ceil((min_exponent + kQ - 1) * kD_1_LOG2_10);
+  static const int kCachedPowersOffset = 348;
   int foo = kCachedPowersOffset;
   int index = (foo + int(k) - 1) / kDecimalExponentDistance + 1;
   assert(0 <= index && index < int(ARRAY_SIZE(kCachedPowers)));
@@ -291,42 +252,17 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
 }
 
 
-
-void DiyFp::Multiply(const DiyFp& other) {
-  const uint64_t kM32 = 0xFFFFFFFFU;
-  uint64_t a = f_ >> 32;
-  uint64_t b = f_ & kM32;
-  uint64_t c = other.f_ >> 32;
-  uint64_t d = other.f_ & kM32;
-  uint64_t ac = a * c;
-  uint64_t bc = b * c;
-  uint64_t ad = a * d;
-  uint64_t bd = b * d;
-  uint64_t tmp = (bd >> 32) + (ad & kM32) + (bc & kM32);
-  tmp += 1U << 31;
-  uint64_t result_f = ac + (ad >> 32) + (bc >> 32) + (tmp >> 32);
-  e_ += other.e_ + 64;
-  f_ = result_f;
-}
-
-
-static double uint64_to_double(uint64_t d64) { return BitCast<double>(d64); }
-static uint32_t float_to_uint32(float f) { return BitCast<uint32_t>(f); }
-static float uint32_to_float(uint32_t d32) { return BitCast<float>(d32); }
-
 class Double {
  public:
   static const uint64_t kSignMask = 0x8000000000000000ULL;
   static const uint64_t kExponentMask = 0x7FF0000000000000ULL;
   static const uint64_t kSignificandMask = 0x000FFFFFFFFFFFFFULL;
   static const uint64_t kHiddenBit = 0x0010000000000000ULL;
-  static const int kPhysicalSignificandSize = 52;  static const int kSignificandSize = 53;
+  static const int kPhysicalSignificandSize = 52;
+  static const int kSignificandSize = 53;
 
-  Double() : d64_(0) {}
-  explicit Double(double d) : d64_(BitCast<uint64_t>(d)) {}
-  explicit Double(uint64_t d64) : d64_(d64) {}
-  explicit Double(DiyFp diy_fp)
-    : d64_(DiyFpToUint64(diy_fp)) {}
+  explicit Double(double d) 
+    : data(bit_cast<uint64_t>(d)) {}
 
   DiyFp AsDiyFp() const {
     assert(Sign() > 0);
@@ -348,22 +284,15 @@ class Double {
     return DiyFp(f, e);
   }
 
-  uint64_t AsUint64() const {
-    return d64_;
-  }
-
   int Exponent() const {
     if (IsDenormal()) return kDenormalExponent;
 
-    uint64_t d64 = AsUint64();
-    int biased_e =
-        int((d64 & kExponentMask) >> kPhysicalSignificandSize);
+    int biased_e = int((data & kExponentMask) >> kPhysicalSignificandSize);
     return biased_e - kExponentBias;
   }
 
   uint64_t Significand() const {
-    uint64_t d64 = AsUint64();
-    uint64_t significand = d64 & kSignificandMask;
+    uint64_t significand = data & kSignificandMask;
     if (!IsDenormal()) {
       return significand + kHiddenBit;
     } else {
@@ -372,30 +301,15 @@ class Double {
   }
 
   bool IsDenormal() const {
-    uint64_t d64 = AsUint64();
-    return (d64 & kExponentMask) == 0;
+    return (data & kExponentMask) == 0;
   }
 
   bool IsSpecial() const {
-    uint64_t d64 = AsUint64();
-    return (d64 & kExponentMask) == kExponentMask;
-  }
-
-  bool IsNan() const {
-    uint64_t d64 = AsUint64();
-    return ((d64 & kExponentMask) == kExponentMask) &&
-        ((d64 & kSignificandMask) != 0);
-  }
-
-  bool IsInfinite() const {
-    uint64_t d64 = AsUint64();
-    return ((d64 & kExponentMask) == kExponentMask) &&
-        ((d64 & kSignificandMask) == 0);
+    return (data & kExponentMask) == kExponentMask;
   }
 
   int Sign() const {
-    uint64_t d64 = AsUint64();
-    return (d64 & kSignMask) == 0? 1: -1;
+    return (data & kSignMask) == 0? 1: -1;
   }
 
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
@@ -415,11 +329,11 @@ class Double {
   }
 
   bool LowerBoundaryIsCloser() const {
-    bool physical_significand_is_zero = ((AsUint64() & kSignificandMask) == 0);
+    bool physical_significand_is_zero = ((data & kSignificandMask) == 0);
     return physical_significand_is_zero && (Exponent() != kDenormalExponent);
   }
 
-  double value() const { return uint64_to_double(d64_); }
+  double value() const { return bit_cast<double>(data); }
 
  private:
   static const int kExponentBias = 0x3FF + kPhysicalSignificandSize;
@@ -428,35 +342,9 @@ class Double {
   static const uint64_t kInfinity = 0x7FF0000000000000ULL;
   static const uint64_t kNaN = 0x7FF8000000000000ULL;
 
-  const uint64_t d64_;
+  const uint64_t data;
 
-  static uint64_t DiyFpToUint64(DiyFp diy_fp) {
-    uint64_t significand = diy_fp.f();
-    int exponent = diy_fp.e();
-    while (significand > kHiddenBit + kSignificandMask) {
-      significand >>= 1;
-      exponent++;
-    }
-    if (exponent >= kMaxExponent) {
-      return kInfinity;
-    }
-    if (exponent < kDenormalExponent) {
-      return 0;
-    }
-    while (exponent > kDenormalExponent && (significand & kHiddenBit) == 0) {
-      significand <<= 1;
-      exponent--;
-    }
-    uint64_t biased_exponent;
-    if (exponent == kDenormalExponent && (significand & kHiddenBit) == 0) {
-      biased_exponent = 0;
-    } else {
-      biased_exponent = uint64_t(exponent + kExponentBias);
-    }
-    return (significand & kSignificandMask) |
-        (biased_exponent << kPhysicalSignificandSize);
-  }
-
+  Double() = delete;
   Double(Double const&) = delete;
   Double& operator=(Double const&) = delete;
   Double(Double&&) = delete;
@@ -469,11 +357,11 @@ class Single {
   static const uint32_t kExponentMask = 0x7F800000;
   static const uint32_t kSignificandMask = 0x007FFFFF;
   static const uint32_t kHiddenBit = 0x00800000;
-  static const int kPhysicalSignificandSize = 23;  static const int kSignificandSize = 24;
+  static const int kPhysicalSignificandSize = 23;
+  static const int kSignificandSize = 24;
 
-  Single() : d32_(0) {}
-  explicit Single(float f) : d32_(float_to_uint32(f)) {}
-  explicit Single(uint32_t d32) : d32_(d32) {}
+  explicit Single(float f)
+    : data(bit_cast<uint32_t>(f)) {}
 
   DiyFp AsDiyFp() const {
     assert(Sign() > 0);
@@ -481,23 +369,17 @@ class Single {
     return DiyFp(Significand(), Exponent());
   }
 
-  uint32_t AsUint32() const {
-    return d32_;
-  }
-
   int Exponent() const {
     if (IsDenormal()) {
       return kDenormalExponent;
     }
 
-    uint32_t d32 = AsUint32();
-    int biased_e =int((d32 & kExponentMask) >> kPhysicalSignificandSize);
+    int biased_e =int((data & kExponentMask) >> kPhysicalSignificandSize);
     return biased_e - kExponentBias;
   }
 
   uint32_t Significand() const {
-    uint32_t d32 = AsUint32();
-    uint32_t significand = d32 & kSignificandMask;
+    uint32_t significand = data & kSignificandMask;
     if (!IsDenormal()) {
       return significand + kHiddenBit;
     } else {
@@ -506,30 +388,15 @@ class Single {
   }
 
   bool IsDenormal() const {
-    uint32_t d32 = AsUint32();
-    return (d32 & kExponentMask) == 0;
+    return (data & kExponentMask) == 0;
   }
 
   bool IsSpecial() const {
-    uint32_t d32 = AsUint32();
-    return (d32 & kExponentMask) == kExponentMask;
-  }
-
-  bool IsNan() const {
-    uint32_t d32 = AsUint32();
-    return ((d32 & kExponentMask) == kExponentMask) &&
-        ((d32 & kSignificandMask) != 0);
-  }
-
-  bool IsInfinite() const {
-    uint32_t d32 = AsUint32();
-    return ((d32 & kExponentMask) == kExponentMask) &&
-        ((d32 & kSignificandMask) == 0);
+    return (data & kExponentMask) == kExponentMask;
   }
 
   int Sign() const {
-    uint32_t d32 = AsUint32();
-    return (d32 & kSignMask) == 0? 1: -1;
+    return (data & kSignMask) == 0? 1: -1;
   }
 
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
@@ -549,11 +416,11 @@ class Single {
   }
 
   bool LowerBoundaryIsCloser() const {
-    bool physical_significand_is_zero = ((AsUint32() & kSignificandMask) == 0);
+    bool physical_significand_is_zero = ((data & kSignificandMask) == 0);
     return physical_significand_is_zero && (Exponent() != kDenormalExponent);
   }
 
-  float value() const { return uint32_to_float(d32_); }
+  float value() const { return bit_cast<float>(data); }
 
 
  private:
@@ -563,8 +430,9 @@ class Single {
   static const uint32_t kInfinity = 0x7F800000;
   static const uint32_t kNaN = 0x7FC00000;
 
-  const uint32_t d32_;
+  const uint32_t data;
 
+  Single() = delete;
   Single(Single const&) = delete;
   Single& operator=(Single const&) = delete;
   Single(Single&&) = delete;
@@ -576,7 +444,7 @@ class Single {
 static const int kMinimalTargetExponent = -60;
 static const int kMaximalTargetExponent = -32;
 
-static bool RoundWeed(Vector<char> buffer, int length, uint64_t distance_too_high_w, uint64_t unsafe_interval, uint64_t rest, uint64_t ten_kappa, uint64_t unit) {
+inline bool RoundWeed(Vector<char> buffer, int length, uint64_t distance_too_high_w, uint64_t unsafe_interval, uint64_t rest, uint64_t ten_kappa, uint64_t unit) {
 
   uint64_t small_distance = distance_too_high_w - unit;
   uint64_t big_distance = distance_too_high_w + unit;
@@ -599,7 +467,7 @@ static bool RoundWeed(Vector<char> buffer, int length, uint64_t distance_too_hig
   return (2 * unit <= rest) && (rest <= unsafe_interval - 4 * unit);
 }
 
-static bool RoundWeedCounted(Vector<char> buffer,
+inline bool RoundWeedCounted(Vector<char> buffer,
                              int length,
                              uint64_t rest,
                              uint64_t ten_kappa,
@@ -629,7 +497,7 @@ static bool RoundWeedCounted(Vector<char> buffer,
 
 static unsigned int const kSmallPowersOfTen[] = {0, 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 
-static void BiggestPowerTen(uint32_t number, int number_bits, uint32_t* power, int* exponent_plus_one) {
+inline void BiggestPowerTen(uint32_t number, int number_bits, uint32_t* power, int* exponent_plus_one) {
   assert(number < (1u << (number_bits + 1)));
   int exponent_plus_one_guess = ((number_bits + 1) * 1233 >> 12) + 1;
 
@@ -640,7 +508,7 @@ static void BiggestPowerTen(uint32_t number, int number_bits, uint32_t* power, i
   *exponent_plus_one = exponent_plus_one_guess;
 }
 
-static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer, int* length, int* kappa) {
+inline bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer, int* length, int* kappa) {
   assert(low.e() == w.e() && w.e() == high.e());
   assert(low.f() + 1 <= high.f() - 1);
   assert(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
@@ -693,7 +561,7 @@ static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer, int* l
   }
 }
 
-static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer, int* length, int* kappa) {
+inline bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer, int* length, int* kappa) {
   assert(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
   assert(kMinimalTargetExponent >= -60);
   assert(kMaximalTargetExponent <= -32);
@@ -746,7 +614,7 @@ static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer, 
   return RoundWeedCounted(buffer, *length, fractionals, one.f(), w_error, kappa);
 }
 
-static bool Grisu3(double v, FastDtoaMode mode, Vector<char> buffer, int* length, int* decimal_exponent) {
+inline bool Grisu3(double v, FastDtoaMode mode, Vector<char> buffer, int* length, int* decimal_exponent) {
   DiyFp w = Double(v).AsNormalizedDiyFp();
   DiyFp boundary_minus, boundary_plus;
   if (mode == FAST_DTOA_SHORTEST) {
@@ -759,7 +627,7 @@ static bool Grisu3(double v, FastDtoaMode mode, Vector<char> buffer, int* length
   assert(boundary_plus.e() == w.e());
   DiyFp ten_mk;  int mk;  int ten_mk_minimal_binary_exponent = kMinimalTargetExponent - (w.e() + DiyFp::kSignificandSize);
   int ten_mk_maximal_binary_exponent = kMaximalTargetExponent - (w.e() + DiyFp::kSignificandSize);
-  PowersOfTenCache::GetCachedPowerForBinaryExponentRange( ten_mk_minimal_binary_exponent, ten_mk_maximal_binary_exponent, &ten_mk, &mk);
+  GetCachedPowerForBinaryExponentRange( ten_mk_minimal_binary_exponent, ten_mk_maximal_binary_exponent, &ten_mk, &mk);
   assert((kMinimalTargetExponent <= w.e() + ten_mk.e() + DiyFp::kSignificandSize) && (kMaximalTargetExponent >= w.e() + ten_mk.e() + DiyFp::kSignificandSize));
   DiyFp scaled_w = DiyFp::Times(w, ten_mk);
   assert(scaled_w.e() == boundary_plus.e() + ten_mk.e() + DiyFp::kSignificandSize);
@@ -773,13 +641,13 @@ static bool Grisu3(double v, FastDtoaMode mode, Vector<char> buffer, int* length
 }
 
 
-static bool Grisu3Counted(double v, int requested_digits, Vector<char> buffer, int* length, int* decimal_exponent) {
+inline bool Grisu3Counted(double v, int requested_digits, Vector<char> buffer, int* length, int* decimal_exponent) {
   DiyFp w = Double(v).AsNormalizedDiyFp();
   DiyFp ten_mk;
   int mk;
   int ten_mk_minimal_binary_exponent = kMinimalTargetExponent - (w.e() + DiyFp::kSignificandSize);
   int ten_mk_maximal_binary_exponent = kMaximalTargetExponent - (w.e() + DiyFp::kSignificandSize);
-  PowersOfTenCache::GetCachedPowerForBinaryExponentRange( ten_mk_minimal_binary_exponent, ten_mk_maximal_binary_exponent, &ten_mk, &mk);
+  GetCachedPowerForBinaryExponentRange( ten_mk_minimal_binary_exponent, ten_mk_maximal_binary_exponent, &ten_mk, &mk);
   assert((kMinimalTargetExponent <= w.e() + ten_mk.e() + DiyFp::kSignificandSize) && (kMaximalTargetExponent >= w.e() + ten_mk.e() + DiyFp::kSignificandSize));
   DiyFp scaled_w = DiyFp::Times(w, ten_mk);
 
@@ -790,7 +658,7 @@ static bool Grisu3Counted(double v, int requested_digits, Vector<char> buffer, i
 }
 
 
-bool FastDtoa(double v, FastDtoaMode mode, int requested_digits, Vector<char> buffer, int* length, int* decimal_point) {
+inline bool FastDtoa(double v, FastDtoaMode mode, int requested_digits, Vector<char> buffer, int* length, int* decimal_point) {
   assert(v > 0);
   assert(!Double(v).IsSpecial());
 

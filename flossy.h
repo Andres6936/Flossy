@@ -213,11 +213,8 @@ namespace {
       OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     */
 
-    enum class fast_dtoa_mode {
-      shortest,
-      shortest_single,
-      precision
-    };
+    static const int fast_dtoa_maximal_length = 17;
+    static const int fast_dtoa_maximal_single_length = 9;
 
     namespace {
       static_assert(std::numeric_limits<double>::is_iec559,
@@ -335,11 +332,6 @@ namespace {
         return dest;
       }
 
-      /*
-      static const int kfast_dtoaMaximalLength = 17;
-      static const int kfast_dtoaMaximalSingleLength = 9;
-      */
-
       struct cached_power {
         uint64_t significand;
         int16_t binary_exponent;
@@ -416,8 +408,11 @@ namespace {
         *power = diy_fp(cpower.significand, cpower.binary_exponent);
       }
 
+      template<typename ValueType>
+      struct float_traits;
 
-      struct double_traits {
+      template<>
+      struct float_traits<double> {
         static const uint64_t sign_mask                 = 0x8000000000000000ULL;
         static const uint64_t exponent_mask             = 0x7FF0000000000000ULL;
         static const uint64_t significand_mask          = 0x000FFFFFFFFFFFFFULL;
@@ -434,7 +429,8 @@ namespace {
         typedef uint64_t      uint_type;
       };
 
-      struct single_traits {
+      template<>
+      struct float_traits<float> {
         static const uint32_t sign_mask                 = 0x80000000;
         static const uint32_t exponent_mask             = 0x7F800000;
         static const uint32_t significand_mask          = 0x007FFFFF;
@@ -551,9 +547,7 @@ namespace {
         float_wrapper& operator=(float_wrapper&&) = delete;
       };
 
-      typedef float_wrapper<double_traits> Double;
-      typedef float_wrapper<single_traits> Single;
-
+      typedef float_wrapper<float_traits<double>> double_wrapper;
 
       static const int minimal_target_exponent = -60;
       static const int maximal_target_exponent = -32;
@@ -583,42 +577,6 @@ namespace {
         }
         return (2 * unit <= rest) && (rest <= unsafe_interval - 4 * unit);
       }
-
-
-      inline bool round_weed_counted(buffer<char> buffer, int length, uint64_t rest,
-                                     uint64_t ten_kappa, uint64_t unit,
-                                     int* kappa) noexcept {
-        assert(rest < ten_kappa);
-
-        if(unit >= ten_kappa) {
-          return false;
-        }
-
-        if(ten_kappa - unit <= unit) {
-          return false;
-        }
-
-        if((ten_kappa - rest > rest) && (ten_kappa - 2 * rest >= 2 * unit)) {
-          return true;
-        }
-
-        if((rest > unit) && (ten_kappa - (rest - unit) <= (rest - unit))) {
-          buffer[length - 1]++;
-          for(int i = length - 1; i > 0; --i) {
-            if (buffer[i] != '0' + 10) break;
-            buffer[i] = '0';
-            buffer[i - 1]++;
-          }
-
-          if (buffer[0] == '0' + 10) {
-            buffer[0] = '1';
-            (*kappa) += 1;
-          }
-          return true;
-        }
-        return false;
-      }
-
 
       static unsigned int const small_powers_of_ten[] = {
         0, 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000
@@ -702,81 +660,16 @@ namespace {
         }
       }
 
-      inline bool digit_gen_counted(diy_fp w, int requested_digits, buffer<char> buffer,
-                                    int* length, int* kappa) noexcept {
 
-        assert(minimal_target_exponent <= w.e && w.e <= maximal_target_exponent);
-
-        uint64_t w_error = 1;
-        diy_fp one = diy_fp(1ULL << -w.e, w.e);
-        uint32_t integrals = uint32_t(w.f >> -one.e);
-        uint64_t fractionals = w.f & (one.f - 1);
-        uint32_t divisor;
-        int divisor_exponent_plus_one;
-
-        biggest_power_ten(integrals, diy_fp::significand_size - (-one.e), &divisor,
-                          &divisor_exponent_plus_one);
-        *kappa = divisor_exponent_plus_one;
-        *length = 0;
-
-        while(*kappa > 0) {
-          int digit = integrals / divisor;
-          assert(digit <= 9);
-          buffer[*length] = char('0' + digit);
-          (*length)++;
-          requested_digits--;
-          integrals %= divisor;
-          (*kappa)--;
-
-          if(requested_digits == 0) {
-            break;
-          }
-          divisor /= 10;
-        }
-
-        if(requested_digits == 0) {
-          uint64_t rest = (uint64_t(integrals) << -one.e) + fractionals;
-          return round_weed_counted(buffer, *length, rest, uint64_t(divisor) << -one.e,
-                                    w_error, kappa);
-        }
-
-        assert(one.e >= -60);
-        assert(fractionals < one.f);
-        assert(0xFFFFFFFFFFFFFFFFULL / 10 >= one.f);
-
-        while(requested_digits > 0 && fractionals > w_error) {
-          fractionals *= 10;
-          w_error *= 10;
-          int digit = int(fractionals >> -one.e);
-          assert(digit <= 9);
-          buffer[*length] = char('0' + digit);
-          (*length)++;
-          requested_digits--;
-          fractionals &= one.f - 1;
-          (*kappa)--;
-        }
-
-        if(requested_digits != 0) {
-          return false;
-        }
-
-        return round_weed_counted(buffer, *length, fractionals, one.f, w_error, kappa);
-      }
-
-
-      inline bool grisu3(double v, fast_dtoa_mode mode, buffer<char> buffer,
+      template<typename ValueType>
+      inline bool grisu3(ValueType v, buffer<char> buffer,
                          int* length, int* decimal_exponent) noexcept {
 
-        diy_fp w = Double(v).as_normalized_diy_fp();
+        diy_fp w = double_wrapper(v).as_normalized_diy_fp();
         diy_fp boundary_minus, boundary_plus;
 
-        if(mode == fast_dtoa_mode::shortest) {
-          Double(v).normalized_boundaries(&boundary_minus, &boundary_plus);
-        } else {
-          assert(mode == fast_dtoa_mode::shortest_single);
-          float single_v = float(v);
-          Single(single_v).normalized_boundaries(&boundary_minus, &boundary_plus);
-        }
+        float_wrapper<float_traits<ValueType>>(v).normalized_boundaries(&boundary_minus, &boundary_plus);
+
         assert(boundary_plus.e == w.e);
 
         int ten_mk_minimal_binary_exponent = minimal_target_exponent 
@@ -805,54 +698,17 @@ namespace {
         return result;
       }
 
-
-      inline bool grisu3_counted(double v, int requested_digits, buffer<char> buffer,
-                                 int* length, int* decimal_exponent) noexcept {
-
-        diy_fp w = Double(v).as_normalized_diy_fp();
-
-        int ten_mk_minimal_binary_exponent = minimal_target_exponent 
-            - (w.e + diy_fp::significand_size);
-        int ten_mk_maximal_binary_exponent = maximal_target_exponent
-            - (w.e + diy_fp::significand_size);
-
-        diy_fp ten_mk;
-        int mk;
-        power_for_bin_exp_range(ten_mk_minimal_binary_exponent,
-                                ten_mk_maximal_binary_exponent, &ten_mk, &mk);
-
-        assert((minimal_target_exponent <= w.e + ten_mk.e + diy_fp::significand_size)
-            && (maximal_target_exponent >= w.e + ten_mk.e + diy_fp::significand_size));
-
-        diy_fp scaled_w = w * ten_mk;
-
-        int kappa;
-        bool result = digit_gen_counted(scaled_w, requested_digits, buffer, length, &kappa);
-        *decimal_exponent = -mk + kappa;
-        return result;
-      }
-
     }
-
-    inline bool fast_dtoa(double v, fast_dtoa_mode mode, int requested_digits,
-                          buffer<char> buffer, int* length, int* decimal_point) noexcept {
+    
+    template<typename ValueType>
+    inline bool fast_dtoa(ValueType v, buffer<char> buffer, int* length, int* decimal_point) noexcept {
       assert(v > 0);
-      assert(!Double(v).is_special());
+      assert(!double_wrapper(v).is_special());
 
       bool result = false;
       int decimal_exponent = 0;
 
-      switch(mode) {
-      case fast_dtoa_mode::shortest:
-      case fast_dtoa_mode::shortest_single:
-        result = grisu3(v, mode, buffer, length, &decimal_exponent);
-        break;
-      case fast_dtoa_mode::precision:
-        result = grisu3_counted(v, requested_digits, buffer, length, &decimal_exponent);
-        break;
-      default:
-        abort();
-      }
+      result = grisu3(v, buffer, length, &decimal_exponent);
 
       if(result) {
         *decimal_point = *length + decimal_exponent;
@@ -860,57 +716,20 @@ namespace {
       }
       return result;
     }
-
   }
 
   template<typename CharT, typename OutputIterator, typename ValueType>
   typename std::enable_if<std::is_floating_point<ValueType>::value>::type
   format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
-    /*
-      Float to string is a /
-      pretty complicated thing. /
-      Better use a lib.
+    bool neg = std::signbit(value);
 
-      Even if it means some extra copies.
-    */
+    char buf[double_conversion::fast_dtoa_maximal_length+1];
+    int length, decimal_point;
+    double_conversion::fast_dtoa(std::copysign(double(value), 1.0), double_conversion::buffer<char>(buf, sizeof(buf)), &length, &decimal_point);
 
-    std::basic_stringstream<CharT> tmp(std::ios_base::out);
+    std::copy(buf, buf+length, out);
+    
 
-    switch(options.format) {
-    case conversion_format::normal_float:
-      {
-        int ex = int(std::log10(std::copysign(value, ValueType(1.0))));
-        if(ex < -4 || ex >= options.precision) {
-          tmp << std::scientific;
-        } else {
-          tmp << std::fixed;
-        }
-      }
-      break;
-    case conversion_format::scientific_float:
-      tmp << std::scientific;
-      break;
-    case conversion_format::normal:
-    default:
-      tmp << std::fixed;
-      break;
-    };
-
-    tmp << std::setprecision(options.precision);
-    tmp << std::setw(options.width);
-
-    if(options.zero_fill) {
-      tmp << std::setfill('0') << std::internal;
-    }
-
-    if(options.sign) {
-      tmp << std::showpos;
-    }
-
-    tmp << value;
-
-    auto const str = tmp.str();
-    std::copy(str.begin(), str.end(), out);
   }
 
   template<typename CharT, typename OutputIterator, typename ValueType>

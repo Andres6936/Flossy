@@ -729,6 +729,32 @@ namespace {
 
     std::copy(buf, buf+length, out);
     
+    if(options.format == conversion_format::scientific_float) {
+      
+    } else {
+      std::cout << "Digits : " << buf << std::endl;
+      std::cout << "Decimal: " << decimal_point << std::endl;
+      std::cout << "Length : " << length << std::endl;
+
+      int before = decimal_point > 0 ? 1 : decimal_point;
+      bool show_point = options.precision > 0;
+      int len = [&]() {
+        if(show_point) {
+          return before + 1 + options.precision;
+        } else {
+          return before;
+        }
+      };
+
+      if(neg || options.sign) {
+        ++len;
+      }
+
+      if(len < options.width) {
+        
+      }
+
+    }
 
   }
 

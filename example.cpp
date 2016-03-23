@@ -5,7 +5,7 @@
 
 int main() {
 
-  flossy::format(std::cout, "Hallo{>+08.2f}blu{<+08.3f}blub\n", 
-  
-  0.1, 20.0, 30.0);
+  flossy::format(std::cout, "A={}{20s}",
+    u'c', "hallo"
+    );
 }

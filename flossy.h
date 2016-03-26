@@ -33,6 +33,7 @@ public:
 namespace {
   // Used only for types that allow different representations, i.e. not for strings
   enum class conversion_format {
+    binary,
     decimal,
     octal,
     hex,
@@ -44,19 +45,26 @@ namespace {
     fail
   };
 
-  enum class conversion_alignment {
+  enum class fill_alignment {
     left,
+    intern,
     right
   };
 
+  enum class pos_sign_type {
+    plus,
+    space,
+    none
+  };
+
   struct conversion_options {
-    int                      width     = 0;
-    int                      precision = 6;
-    conversion_alignment     alignment = conversion_alignment::left;
-    conversion_format        format    = conversion_format::normal;
-    bool                     sign      = false;
-    bool                     prec_expl = false;
-    bool                     zero_fill = false;
+    int                width     = 0;
+    int                precision = 6;
+    fill_alignment     alignment = fill_alignment::left;
+    conversion_format  format    = conversion_format::normal;
+    pos_sign_type      pos_sign  = pos_sign_type::none;
+    bool               prec_expl = false;
+    bool               zero_fill = false;
   };
 
   template<typename InputIterator>
@@ -71,22 +79,24 @@ namespace {
   class option_reader {
     typedef typename std::iterator_traits<InputIterator>::value_type char_type;
 
-    const std::initializer_list<std::pair<char_type, conversion_alignment>> alignment_types {
-      {'<', conversion_alignment::left},
-      {'>', conversion_alignment::right}
+    const std::initializer_list<std::pair<char_type, fill_alignment>> alignment_types {
+      {'>', fill_alignment::left},
+      {'_', fill_alignment::intern},
+      {'<', fill_alignment::right}
     };
 
-    const std::initializer_list<std::pair<char_type, bool>> sign_types {
-      {'+', true},
+    const std::initializer_list<std::pair<char_type, pos_sign_type>> sign_types {
+      {'+', pos_sign_type::plus},
+      {' ', pos_sign_type::space}
     };
 
     const std::initializer_list<std::pair<char_type, conversion_format>> format_types {
+      {'b', conversion_format::binary},
       {'d', conversion_format::decimal},
       {'o', conversion_format::octal},
       {'x', conversion_format::hex},
       {'e', conversion_format::scientific_float},
-      {'f', conversion_format::normal},
-      {'g', conversion_format::normal_float},
+      {'f', conversion_format::normal_float},
       {'s', conversion_format::string},
       {'c', conversion_format::character}
     };
@@ -130,7 +140,7 @@ namespace {
     }
 
     inline void read_sign() {
-      map_char(sign_types, options.sign);
+      map_char(sign_types, options.pos_sign);
     }
 
     inline int read_number() {
@@ -192,54 +202,203 @@ namespace {
     format_element<CharT>(out, options, value.c_str());
   }
 
-  template<typename CharT, typename OutputIterator, typename ValueType>
-  typename std::enable_if<std::is_scalar<ValueType>::value && !std::is_pointer<ValueType>::value>::type
-  format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
-    std::basic_stringstream<CharT> tmp(std::ios_base::out);
-    tmp << std::setw(options.width);
+  template<typename CharT>
+  constexpr CharT digit_chars[16] = {'0', '1', '2', '3', '4', '5', '6', '7', 
+                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-    if(std::is_floating_point<ValueType>::value) {
-      tmp << std::setprecision(options.precision);
 
-      switch(options.format) {
-      case conversion_format::scientific_float:
-        tmp << std::scientific;
-        break;
-      case conversion_format::normal:
-      case conversion_format::normal_float:
+  template<typename ValueType>
+  constexpr ValueType int_format_radix(conversion_format format) {
+    switch(format) {
+      case conversion_format::hex:
+        return ValueType(16);
+      case conversion_format::octal:
+        return ValueType(8);
+      case conversion_format::binary:
+        return ValueType(2);
       default:
-        tmp << std::fixed;
-        break;
+        return ValueType(10);
+    }
+  }
+
+  // This should be enough space for all integer types supported by the compiler, in binary representation
+  template<typename CharT>
+  struct Digits {
+    std::array<CharT, std::numeric_limits<uintmax_t>::digits> digits;
+    int count = 0;
+
+    void insert(CharT c) {
+      digits[count++] = c;
+    }
+
+    template<typename OutputIterator>
+    OutputIterator output(OutputIterator out) const {
+      for(int i = count; i > 0; --i) {
+        *out++ = digits[i-1];
       }
-    } else if(std::is_integral<ValueType>::value) {
-      switch(options.format) {
-        case conversion_format::octal:
-          tmp << std::oct;
-          break;
-        case conversion_format::hex:
-          tmp << std::hex;
-          break;
-        default:
-          break;
-      }
+      return out;
+    }
+  };
+  
+
+  template<typename CharT, typename ValueType>
+  Digits<CharT> generate_digits(ValueType value, conversion_format const& format) {
+    Digits<CharT> digits;
+
+    const ValueType radix = int_format_radix<ValueType>(format);
+
+    do {
+      digits.insert(digit_chars<CharT>[value % radix]);
+      value /= radix;
+    } while(value);
+
+    return digits;
+  }
+
+
+  enum class Sign {
+    none,
+    space,
+    plus,
+    minus
+  };
+
+  template<typename CharT, typename OutputIterator>
+  OutputIterator output_sign(OutputIterator out, Sign sign) {
+    if(sign == Sign::space) {
+      *out++ = CharT(' ');
+    } else if(sign == Sign::plus) {
+      *out++ = CharT('+');
+    } else if(sign == Sign::minus) {
+      *out++ = CharT('-');
     }
 
-    if(options.sign) {
-      tmp << std::showpos;
+    return out;
+  }
+
+  template<typename OutputIterator, typename CharT>
+  OutputIterator output_integer(OutputIterator out, Digits<CharT> const& digits, CharT fill, Sign sign, fill_alignment fill_align, int width) {
+    
+    /*
+      result         fill_align  fill  sign   valid
+      "+000001234"   intern      '0'   plus   yes
+      "-000001234"   intern      '0'   minus  yes
+      " 000001234"   intern      '0'   space  yes
+      "0000001234"   intern      '0'   none   yes
+      "+     1234"   intern      ' '   plus   yes
+      "-     1234"   intern      ' '   minus  yes
+      "      1234"   intern      ' '   space  yes
+      "      1234"   intern      ' '   none   yes
+
+      "00000+1234"   left        '0'   plus   no
+      "00000-1234"   left        '0'   minus  no
+      "00000 1234"   left        '0'   space  no
+      "0000001234"   left        '0'   none   yes
+      "+     1234"   left        ' '   plus   yes
+      "-     1234"   left        ' '   minus  yes
+      "      1234"   left        ' '   space  yes
+      "      1234"   left        ' '   none   yes
+
+      "+123400000"   right       '0'   plus   no
+      "-123400000"   right       '0'   minus  no
+      " 123400000"   right       '0'   space  no
+      "1234000000"   right       '0'   none   yes (for fraction part of float formatting)
+      "+1234     "   right       ' '   plus   yes
+      "-1234     "   right       ' '   minus  yes
+      " 1234     "   right       ' '   space  yes
+      "1234      "   right       ' '   none   yes
+     */
+
+    int fill_count = width - digits.count - (sign == Sign::none ? 0 : 1);
+    if(fill_count < 0) {
+      fill_count = 0;
     }
 
-    if(options.zero_fill) {
-      tmp << std::setfill('0') << std::internal;
+    if(fill_align == fill_alignment::left) {
+      out = std::fill_n(out, fill_count, fill);
+      out = output_sign<CharT>(out, sign);
+      out = digits.output(out);
+    } else if(fill_align == fill_alignment::intern) {
+      out = output_sign<CharT>(out, sign);
+      out = std::fill_n(out, fill_count, fill);
+      out = digits.output(out);
+    } else if(fill_align == fill_alignment::right) {
+      out = output_sign<CharT>(out, sign);
+      out = digits.output(out);
+      out = std::fill_n(out, fill_count, fill);
     }
 
-    if(options.format == conversion_format::character) {
-      tmp << static_cast<CharT>(value);
+    return out;
+  }
+
+
+  constexpr Sign sign_from_format(bool neg, pos_sign_type pos) {
+    if(neg) {
+      return Sign::minus;
     } else {
-      tmp << value;
+      switch(pos) {
+        case pos_sign_type::plus:
+          return Sign::plus;
+        case pos_sign_type::space:
+          return Sign::space;
+        case pos_sign_type::none:
+          return Sign::none;
+      }
     }
-    auto str = tmp.str();
-    format_element(out, options, str);
-    //std::copy(str.begin(), str.end(), out);
+  }
+
+  template<typename CharT, typename OutputIterator, typename ValueType>
+  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
+  format_integer(OutputIterator &out, ValueType value, bool negative, conversion_options const& options) {
+    if(options.format == conversion_format::character) {
+      *out++ = CharT(value);
+    } else {
+      Digits<CharT> digits = generate_digits<CharT>(value, options.format);
+      
+      out = output_integer(out, digits, options.zero_fill ? CharT('0') : CharT(' '),
+                           sign_from_format(negative, options.pos_sign),
+                           options.alignment, options.width);
+    }
+  }
+
+
+  template<typename CharT, typename OutputIterator, typename ValueType>
+  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
+  format_element(OutputIterator &out, conversion_options options, ValueType value) {
+    if(options.alignment != fill_alignment::intern) {
+      options.zero_fill = false;
+    }
+
+    format_integer<CharT>(out, value, false, options);
+  }
+
+  template<typename ValueType>
+  typename std::make_unsigned<ValueType>::type make_positive(ValueType value) {
+    if(value >= 0) {
+      return static_cast<typename std::make_unsigned<ValueType>::type>(value);
+    } else {
+      return ~(static_cast<typename std::make_unsigned<ValueType>::type>(value) - 1U);
+    }
+  }
+
+
+  template<typename CharT, typename OutputIterator, typename ValueType>
+  typename std::enable_if<std::is_integral<ValueType>::value && std::is_signed<ValueType>::value>::type
+  format_element(OutputIterator &out, conversion_options options, ValueType value) {
+    if(options.alignment != fill_alignment::intern) {
+      options.zero_fill = false;
+    }
+      
+    if(options.format != conversion_format::normal and options.format != conversion_format::decimal) {
+      format_integer<CharT>(out, static_cast<typename std::make_unsigned<ValueType>::type>(value), false, options);
+    } else {
+      format_integer<CharT>(out, make_positive(value), value < 0, options);
+    }
+  }
+
+  template<typename CharT, typename OutputIterator, typename ValueType>
+  typename std::enable_if<std::is_floating_point<ValueType>::value>::type
+  format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
   }
 }
 

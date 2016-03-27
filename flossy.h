@@ -190,16 +190,35 @@ namespace {
     }
   };
 
-  template<typename CharT, typename OutputIterator>
-  void format_element(OutputIterator &out, conversion_options const& options, CharT const* value) {
-    while(*value) {
-      *out++ = *value++;
+  template<typename CharT, typename OutputIterator, typename InputIterator>
+  void format_string(OutputIterator &out, conversion_options const& options, InputIterator start, InputIterator end) {
+    int fill_count = options.width - (end - start);
+    if(fill_count < 0) {
+      fill_count = 0;
+    }
+
+    if(options.alignment == fill_alignment::left) {
+      out = std::fill_n(out, fill_count, CharT(' '));
+      out = std::copy(start, end, out);
+    } else {
+      out = std::copy(start, end, out);
+      out = std::fill_n(out, fill_count, CharT(' '));
     }
   }
 
   template<typename CharT, typename OutputIterator>
+  void format_element(OutputIterator &out, conversion_options const& options, CharT const* value) {
+    CharT const* end = value;
+    while(*end != CharT('\0')) {
+      ++end;
+    }
+
+    format_string<CharT>(out, options, value, end);
+  }
+
+  template<typename CharT, typename OutputIterator>
   void format_element(OutputIterator &out, conversion_options const& options, std::basic_string<CharT> const& value) {
-    format_element<CharT>(out, options, value.c_str());
+    format_string<CharT>(out, options, value.begin(), value.end());
   }
 
   template<typename CharT>
@@ -349,7 +368,7 @@ namespace {
 
   template<typename CharT, typename OutputIterator, typename ValueType>
   typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
-  format_integer(OutputIterator &out, ValueType value, bool negative, conversion_options const& options) {
+  format_integer_unchecked(OutputIterator &out, ValueType value, bool negative, conversion_options const& options) {
     if(options.format == conversion_format::character) {
       *out++ = CharT(value);
     } else {
@@ -361,14 +380,20 @@ namespace {
     }
   }
 
-
   template<typename CharT, typename OutputIterator, typename ValueType>
   typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
-  format_element(OutputIterator &out, conversion_options options, ValueType value) {
+  format_integer(OutputIterator &out, ValueType value, bool negative, conversion_options options) {
     if(options.alignment != fill_alignment::intern) {
       options.zero_fill = false;
     }
 
+    format_integer_unchecked<CharT>(out, value, negative, options);
+  }
+
+
+  template<typename CharT, typename OutputIterator, typename ValueType>
+  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
+  format_element(OutputIterator &out, conversion_options options, ValueType value) {
     format_integer<CharT>(out, value, false, options);
   }
 
@@ -385,10 +410,6 @@ namespace {
   template<typename CharT, typename OutputIterator, typename ValueType>
   typename std::enable_if<std::is_integral<ValueType>::value && std::is_signed<ValueType>::value>::type
   format_element(OutputIterator &out, conversion_options options, ValueType value) {
-    if(options.alignment != fill_alignment::intern) {
-      options.zero_fill = false;
-    }
-      
     if(options.format != conversion_format::normal and options.format != conversion_format::decimal) {
       format_integer<CharT>(out, static_cast<typename std::make_unsigned<ValueType>::type>(value), false, options);
     } else {

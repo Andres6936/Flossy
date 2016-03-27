@@ -18,8 +18,48 @@ void test_format_it(std::basic_string<CharT> expect, std::basic_string<CharT> fo
 
 
 int main() {
-  // basic formatters (char)
+  // Alignment of negative floats
+  test_format_it<char>("     -42.133724", "{15f}",   -42.133724f);
+  test_format_it<char>("     -42.133724", "{>15f}",  -42.133724f);
+  test_format_it<char>("-     42.133724", "{_15f}",  -42.133724f);
+  test_format_it<char>("-42.133724     ", "{<15f}",  -42.133724f);
+
+  // Alignment of negative floats with 0 fill
+  test_format_it<char>("     -42.133724", "{015f}",   -42.133724f);
+  test_format_it<char>("     -42.133724", "{>015f}",  -42.133724f);
+  test_format_it<char>("-0000042.133724", "{_015f}",  -42.133724f);
+  test_format_it<char>("-42.133724     ", "{<015f}",  -42.133724f);
+
+  // Alignment of positive floats with plus sign
+  test_format_it<char>("     +42.133724", "{+15f}",   42.133724f);
+  test_format_it<char>("     +42.133724", "{>+15f}",  42.133724f);
+  test_format_it<char>("+     42.133724", "{_+15f}",  42.133724f);
+  test_format_it<char>("+42.133724     ", "{<+15f}",  42.133724f);
+
+  // Alignment of negative floats with 0 fill and plus sign
+  test_format_it<char>("     +42.133724", "{+015f}",   42.133724f);
+  test_format_it<char>("     +42.133724", "{>+015f}",  42.133724f);
+  test_format_it<char>("+0000042.133724", "{_+015f}",  42.133724f);
+  test_format_it<char>("+42.133724     ", "{<+015f}",  42.133724f);
+
+  // Alignment of positive floats with space
+  test_format_it<char>("      42.133724", "{ 15f}",   42.133724f);
+  test_format_it<char>("      42.133724", "{> 15f}",  42.133724f);
+  test_format_it<char>("      42.133724", "{_ 15f}",  42.133724f);
+  test_format_it<char>(" 42.133724     ", "{< 15f}",  42.133724f);
+
+  // Alignment of negative floats with 0 fill and space
+  test_format_it<char>("      42.133724", "{ 015f}",   42.133724f);
+  test_format_it<char>("      42.133724", "{> 015f}",  42.133724f);
+  test_format_it<char>(" 0000042.133724", "{_ 015f}",  42.133724f);
+  test_format_it<char>(" 42.133724     ", "{< 015f}",  42.133724f);
+
+
+
+  // Floating point
   test_format_it<char>("12.345600",    "{f}",   12.3456f);
+  test_format_it<char>("   12.345600",    "{10f}",   12.3456f);
+
   test_format_it<char>("1.234560e+03", "{e}", 1.23456e3f);
   test_format_it<char>("12.345600",    "{f}",    12.3456);
   test_format_it<char>("1.234560e+03", "{e}",  1.23456e3);

@@ -206,7 +206,7 @@ namespace {
 
   /* Output string with space padding on the appropriate side */
   template<typename CharType, typename OutputIterator, typename InputIterator>
-  void format_string(OutputIterator &out, conversion_options const& options, InputIterator start, InputIterator end) {
+  OutputIterator format_string(OutputIterator out, conversion_options const& options, InputIterator start, InputIterator end) {
     int fill_count = options.width - (end - start);
     if(fill_count < 0) {
       fill_count = 0;
@@ -219,17 +219,19 @@ namespace {
       out = std::copy(start, end, out);
       out = std::fill_n(out, fill_count, CharType(' '));
     }
+
+    return out;
   }
 
   /* String formatter for C-Strings */
   template<typename CharType, typename OutputIterator>
-  void format_element(OutputIterator &out, conversion_options const& options, CharType const* value) {
+  OutputIterator format_element(OutputIterator out, conversion_options const& options, CharType const* value) {
     CharType const* end = value;
     while(*end != CharType('\0')) {
       ++end;
     }
 
-    format_string<CharType>(out, options, value, end);
+    return format_string<CharType>(out, options, value, end);
   }
 
 
@@ -319,22 +321,24 @@ namespace {
     return out;
   }
 
-  template<typename OutputIterator, typename CharType, typename DigitOutFunc>
-  OutputIterator output_padded_with_sign(OutputIterator out, DigitOutFunc out_func, int digit_count, CharType fill, sign_character sign, fill_alignment fill_align, int width) {
-    int fill_count = width - digit_count - (sign == sign_character::none ? 0 : 1);
+  template<typename CharType, typename OutputIterator, typename DigitOutFunc>
+  OutputIterator output_padded_with_sign(OutputIterator out, DigitOutFunc out_func, int digit_count, conversion_options const& options, sign_character sign) {
+    int fill_count = options.width - digit_count - (sign == sign_character::none ? 0 : 1);
     if(fill_count < 0) {
       fill_count = 0;
     }
 
-    if(fill_align == fill_alignment::left) {
+    auto fill = options.zero_fill ? CharType('0') : CharType(' ');
+
+    if(options.alignment == fill_alignment::left) {
       out = std::fill_n(out, fill_count, fill);
       out = output_sign<CharType>(out, sign);
       out = out_func();
-    } else if(fill_align == fill_alignment::intern) {
+    } else if(options.alignment == fill_alignment::intern) {
       out = output_sign<CharType>(out, sign);
       out = std::fill_n(out, fill_count, fill);
       out = out_func();
-    } else if(fill_align == fill_alignment::right) {
+    } else if(options.alignment == fill_alignment::right) {
       out = output_sign<CharType>(out, sign);
       out = out_func();
       out = std::fill_n(out, fill_count, fill);
@@ -346,12 +350,12 @@ namespace {
 
   // Format a decomposed integer with fill characters and sign
   template<typename OutputIterator, typename CharType>
-  OutputIterator output_integer(OutputIterator out, digit_buffer<CharType> const& digits, CharType fill, sign_character sign, fill_alignment fill_align, int width) {
+  OutputIterator output_integer(OutputIterator out, digit_buffer<CharType> const& digits, conversion_options const& options, sign_character sign) {
     auto out_func = [&]() {
       return digits.output(out);
     };
 
-    return output_padded_with_sign(out, out_func, digits.count, fill, sign, fill_align, width);
+    return output_padded_with_sign<CharType>(out, out_func, digits.count, options, sign);
   }
 
   // Get the sign character required to display the given sign
@@ -381,9 +385,8 @@ namespace {
     } else {
       digit_buffer<CharType> digits = generate_digits<CharType>(value, options.format);
       
-      out = output_integer(out, digits, options.zero_fill ? CharType('0') : CharType(' '),
-                           sign_from_format(negative, options.pos_sign),
-                           options.alignment, options.width);
+      out = output_integer(out, digits, options, sign_from_format(negative, options.pos_sign));
+                           
     }
   }
 
@@ -433,13 +436,16 @@ namespace {
 // Formatter function for floating point numbers.
 #if FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_SSTREAM
   template<typename CharType, typename OutputIterator, typename ValueType>
-  typename std::enable_if<std::is_floating_point<ValueType>::value>::type
-  format_element(OutputIterator &out, conversion_options options, ValueType value) {
+  typename std::enable_if<std::is_floating_point<ValueType>::value, OutputIterator>::type
+  format_element(OutputIterator out, conversion_options options, ValueType value) {
     if(options.alignment != fill_alignment::intern) {
       options.zero_fill = false;
     }
 
-    std::basic_ostringstream<CharType> sstr;
+    // Format as char string, convert to wider character types later (in std::copy).
+    // This works with char32_t, while using a basic_ostringstream<char32_t> doesn't.
+    // I did not investigate further :)
+    std::ostringstream sstr;
     sstr.flags(options.format != conversion_format::scientific_float ? 
                  std::ios::fixed : std::ios::scientific);
     sstr.precision(options.precision);
@@ -452,32 +458,29 @@ namespace {
       return std::copy(str.begin(), str.end(), out);
     };
 
-    // TODO move option reading into called function (also in format_integer)
-    out = output_padded_with_sign(out, out_func, str.length(), options.zero_fill ? CharType('0') : CharType(' '),
-                         sign_from_format(neg, options.pos_sign),
-                         options.alignment, options.width);
+    return output_padded_with_sign<CharType>(out, out_func, str.length(), options, sign_from_format(neg, options.pos_sign));
   }
 
 #elif FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_FAST
-
+  #error "Fast (and imprecise) float conversion not implemented, yet."
 #elif FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_GRISU
-
+  #error "Grisu float conversion not implemented, yet."
 #else
   #error "FLOSSY_FLOAT_METHOD must be defined as FLOSSY_FLOAT_METHOD_SSTREAM, FLOSSY_FLOAT_METHOD_FAST or FLOSSY_FLOAT_METHOD_GRISU"
 #endif
 }
 
 template<typename OutputIterator, typename InputIterator>
-void format_it(OutputIterator out, InputIterator start, InputIterator const end) {
+OutputIterator format_it(OutputIterator out, InputIterator start, InputIterator const end) {
   // If there are not value left to convert, just copy the rest of the input.
   // Ignore further conversion specifiers.
 
-  std::copy(start, end, out);
+  return std::copy(start, end, out);
 }
 
 /* Generic formatting function using interators */
 template<typename OutputIterator, typename InputIterator, typename FirstElement, typename... ElementTypes>
-void format_it(OutputIterator out, InputIterator start, InputIterator const end, FirstElement const& first, ElementTypes... elements) {
+OutputIterator format_it(OutputIterator out, InputIterator start, InputIterator const end, FirstElement const& first, ElementTypes... elements) {
   // Copy everything from start to the beginning of the first "real" (i.e. not '{{') conversion
   // specifier to out, transforming {{ into { appropriately.
   // Read conversion specifier, convert one element and recurse to format the rest.
@@ -499,6 +502,8 @@ void format_it(OutputIterator out, InputIterator start, InputIterator const end,
 
     *out++ = c;
   }
+
+  return out;
 }
 
 

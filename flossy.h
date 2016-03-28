@@ -430,31 +430,34 @@ namespace {
   }
 
 
+// Formatter function for floating point numbers.
 #if FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_SSTREAM
   template<typename CharType, typename OutputIterator, typename ValueType>
-  void format_float_scientific(OutputIterator &out, conversion_options options, ValueType value) {
-    
-  }
-
-  template<typename CharType, typename OutputIterator, typename ValueType>
-  void format_float_fixed(OutputIterator &out, conversion_options options, ValueType value) {
+  typename std::enable_if<std::is_floating_point<ValueType>::value>::type
+  format_element(OutputIterator &out, conversion_options options, ValueType value) {
     if(options.alignment != fill_alignment::intern) {
       options.zero_fill = false;
     }
+
     std::basic_ostringstream<CharType> sstr;
-    sstr.flags(std::ios::fixed);
+    sstr.flags(options.format != conversion_format::scientific_float ? 
+                 std::ios::fixed : std::ios::scientific);
     sstr.precision(options.precision);
-    bool neg = std::signbit(value);
+
+    bool const neg = std::signbit(value);
     sstr << std::abs(value);
-    auto str = sstr.str();
+    auto const str = sstr.str();
+
     auto out_func = [&]() {
       return std::copy(str.begin(), str.end(), out);
     };
+
     // TODO move option reading into called function (also in format_integer)
     out = output_padded_with_sign(out, out_func, str.length(), options.zero_fill ? CharType('0') : CharType(' '),
                          sign_from_format(neg, options.pos_sign),
                          options.alignment, options.width);
   }
+
 #elif FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_FAST
 
 #elif FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_GRISU
@@ -462,18 +465,6 @@ namespace {
 #else
   #error "FLOSSY_FLOAT_METHOD must be defined as FLOSSY_FLOAT_METHOD_SSTREAM, FLOSSY_FLOAT_METHOD_FAST or FLOSSY_FLOAT_METHOD_GRISU"
 #endif
-
-
-  // Formatter function for floating point numbers.
-  template<typename CharType, typename OutputIterator, typename ValueType>
-  typename std::enable_if<std::is_floating_point<ValueType>::value>::type
-  format_element(OutputIterator &out, conversion_options const& options, ValueType value) {
-    if(options.format == conversion_format::scientific_float) {
-      format_float_scientific<CharType>(out, options, value);
-    } else {
-      format_float_fixed<CharType>(out, options, value);
-    }
-  }
 }
 
 template<typename OutputIterator, typename InputIterator>

@@ -18,51 +18,77 @@ void test_format_it(std::basic_string<CharT> expect, std::basic_string<CharT> fo
 
 
 int main() {
-  // Alignment of negative floats
+  // Alignment of negative floats (fixed)
   test_format_it<char>("     -42.133724", "{15f}",   -42.133724f);
   test_format_it<char>("     -42.133724", "{>15f}",  -42.133724f);
   test_format_it<char>("-     42.133724", "{_15f}",  -42.133724f);
   test_format_it<char>("-42.133724     ", "{<15f}",  -42.133724f);
 
-  // Alignment of negative floats with 0 fill
+  // Alignment of negative floats with 0 fill (fixed)
   test_format_it<char>("     -42.133724", "{015f}",   -42.133724f);
   test_format_it<char>("     -42.133724", "{>015f}",  -42.133724f);
   test_format_it<char>("-0000042.133724", "{_015f}",  -42.133724f);
   test_format_it<char>("-42.133724     ", "{<015f}",  -42.133724f);
 
-  // Alignment of positive floats with plus sign
+  // Alignment of positive floats with plus sign (fixed)
   test_format_it<char>("     +42.133724", "{+15f}",   42.133724f);
   test_format_it<char>("     +42.133724", "{>+15f}",  42.133724f);
   test_format_it<char>("+     42.133724", "{_+15f}",  42.133724f);
   test_format_it<char>("+42.133724     ", "{<+15f}",  42.133724f);
 
-  // Alignment of negative floats with 0 fill and plus sign
+  // Alignment of negative floats with 0 fill and plus sign (fixed)
   test_format_it<char>("     +42.133724", "{+015f}",   42.133724f);
   test_format_it<char>("     +42.133724", "{>+015f}",  42.133724f);
   test_format_it<char>("+0000042.133724", "{_+015f}",  42.133724f);
   test_format_it<char>("+42.133724     ", "{<+015f}",  42.133724f);
 
-  // Alignment of positive floats with space
+  // Alignment of positive floats with space (fixed)
   test_format_it<char>("      42.133724", "{ 15f}",   42.133724f);
   test_format_it<char>("      42.133724", "{> 15f}",  42.133724f);
   test_format_it<char>("      42.133724", "{_ 15f}",  42.133724f);
   test_format_it<char>(" 42.133724     ", "{< 15f}",  42.133724f);
 
-  // Alignment of negative floats with 0 fill and space
+  // Alignment of negative floats with 0 fill and space (fixed)
   test_format_it<char>("      42.133724", "{ 015f}",   42.133724f);
   test_format_it<char>("      42.133724", "{> 015f}",  42.133724f);
   test_format_it<char>(" 0000042.133724", "{_ 015f}",  42.133724f);
   test_format_it<char>(" 42.133724     ", "{< 015f}",  42.133724f);
 
+  // Alignment of negative floats (scientific)
+  test_format_it<char>("  -4.213372e+01", "{15e}",   -42.133724f);
+  test_format_it<char>("  -4.213372e+01", "{>15e}",  -42.133724f);
+  test_format_it<char>("-  4.213372e+01", "{_15e}",  -42.133724f);
+  test_format_it<char>("-4.213372e+01  ", "{<15e}",  -42.133724f);
 
+  // Alignment of negative floats with 0 fill (scientific)
+  test_format_it<char>("  -4.213372e+01", "{015e}",   -42.133724f);
+  test_format_it<char>("  -4.213372e+01", "{>015e}",  -42.133724f);
+  test_format_it<char>("-004.213372e+01", "{_015e}",  -42.133724f);
+  test_format_it<char>("-4.213372e+01  ", "{<015e}",  -42.133724f);
 
-  // Floating point
-  test_format_it<char>("12.345600",    "{f}",   12.3456f);
-  test_format_it<char>("   12.345600",    "{10f}",   12.3456f);
+  // Alignment of positive floats with plus sign (scientific)
+  test_format_it<char>("  +4.213372e+01", "{+15e}",   42.133724f);
+  test_format_it<char>("  +4.213372e+01", "{>+15e}",  42.133724f);
+  test_format_it<char>("+  4.213372e+01", "{_+15e}",  42.133724f);
+  test_format_it<char>("+4.213372e+01  ", "{<+15e}",  42.133724f);
 
-  test_format_it<char>("1.234560e+03", "{e}", 1.23456e3f);
-  test_format_it<char>("12.345600",    "{f}",    12.3456);
-  test_format_it<char>("1.234560e+03", "{e}",  1.23456e3);
+  // Alignment of negative floats with 0 fill and plus sign (scientific)
+  test_format_it<char>("  +4.213372e+01", "{+015e}",   42.133724f);
+  test_format_it<char>("  +4.213372e+01", "{>+015e}",  42.133724f);
+  test_format_it<char>("+004.213372e+01", "{_+015e}",  42.133724f);
+  test_format_it<char>("+4.213372e+01  ", "{<+015e}",  42.133724f);
+
+  // Alignment of positive floats with space (scientific)
+  test_format_it<char>("   4.213372e+01", "{ 15e}",   42.133724f);
+  test_format_it<char>("   4.213372e+01", "{> 15e}",  42.133724f);
+  test_format_it<char>("   4.213372e+01", "{_ 15e}",  42.133724f);
+  test_format_it<char>(" 4.213372e+01  ", "{< 15e}",  42.133724f);
+
+  // Alignment of negative floats with 0 fill and space (scientific)
+  test_format_it<char>("   4.213372e+01", "{ 015e}",   42.133724f);
+  test_format_it<char>("   4.213372e+01", "{> 015e}",  42.133724f);
+  test_format_it<char>(" 004.213372e+01", "{_ 015e}",  42.133724f);
+  test_format_it<char>(" 4.213372e+01  ", "{< 015e}",  42.133724f);
 
   // Characters
   test_format_it<char>("f", "{c}", 'f');

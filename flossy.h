@@ -523,7 +523,7 @@ std::basic_string<CharType> format(CharType const* format_str, ElementTypes... e
 /* Allows output formatting string directly to ostream, without extra buffering */
 template<typename CharType, typename Traits, typename... ElementTypes>
 void format(std::basic_ostream<CharType, Traits> &ostream, std::basic_string<CharType> const& format_str, ElementTypes... elements) {
-  format_it(std::ostream_iterator<CharType>(ostream), format_str.begin(), format_str.end(), elements...);
+  format_it(std::ostream_iterator<CharType, CharType>(ostream), format_str.begin(), format_str.end(), elements...);
 }
 
 template<typename CharType, typename Traits, typename... ElementTypes>

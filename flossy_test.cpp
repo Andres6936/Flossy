@@ -1,7 +1,8 @@
+#include <limits>
 #include <typeinfo>
 #include <string>
-#include <iterator>
 #include "flossy.h"
+#include <iostream>
 
 int testcount = 0;
 int failed = 0;
@@ -25,7 +26,8 @@ void assert_equal(std::string description, std::basic_string<CharT> expect, std:
   ++testcount;
 
   if(result != expect) {
-    std::cout << "Test failed (" << typeid(CharT).name() << "): \"" << description << "\": \"" << cheaty_cast_string<char>(result) << "\" != \"" << cheaty_cast_string<char>(expect) << "\")\n";
+    std::cout << "Test failed (" << typeid(CharT).name() << "): \"" << description << "\": \""
+              << cheaty_cast_string<char>(result) << "\" != \"" << cheaty_cast_string<char>(expect) << "\")\n";
     ++failed;
   }
 }
@@ -44,279 +46,443 @@ void test_format_it(std::string expect, std::string format, Args... args) {
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_fixed_float_alignment() {
   // Alignment of negative floats (fixed)
-  test_format_it<CharType>("     -42.133724", "{15f}",   -42.133724f);
-  test_format_it<CharType>("     -42.133724", "{>15f}",  -42.133724f);
-  test_format_it<CharType>("-     42.133724", "{_15f}",  -42.133724f);
-  test_format_it<CharType>("-42.133724     ", "{<15f}",  -42.133724f);
+  test_format_it<CharT>("     -42.133724", "{15f}",   -42.133724f);
+  test_format_it<CharT>("     -42.133724", "{>15f}",  -42.133724f);
+  test_format_it<CharT>("-     42.133724", "{_15f}",  -42.133724f);
+  test_format_it<CharT>("-42.133724     ", "{<15f}",  -42.133724f);
 
   // Alignment of negative floats with 0 fill (fixed)
-  test_format_it<CharType>("     -42.133724", "{015f}",   -42.133724f);
-  test_format_it<CharType>("     -42.133724", "{>015f}",  -42.133724f);
-  test_format_it<CharType>("-0000042.133724", "{_015f}",  -42.133724f);
-  test_format_it<CharType>("-42.133724     ", "{<015f}",  -42.133724f);
+  test_format_it<CharT>("     -42.133724", "{015f}",   -42.133724f);
+  test_format_it<CharT>("     -42.133724", "{>015f}",  -42.133724f);
+  test_format_it<CharT>("-0000042.133724", "{_015f}",  -42.133724f);
+  test_format_it<CharT>("-42.133724     ", "{<015f}",  -42.133724f);
 
   // Alignment of positive floats with plus sign (fixed)
-  test_format_it<CharType>("     +42.133724", "{+15f}",   42.133724f);
-  test_format_it<CharType>("     +42.133724", "{>+15f}",  42.133724f);
-  test_format_it<CharType>("+     42.133724", "{_+15f}",  42.133724f);
-  test_format_it<CharType>("+42.133724     ", "{<+15f}",  42.133724f);
+  test_format_it<CharT>("     +42.133724", "{+15f}",   42.133724f);
+  test_format_it<CharT>("     +42.133724", "{>+15f}",  42.133724f);
+  test_format_it<CharT>("+     42.133724", "{_+15f}",  42.133724f);
+  test_format_it<CharT>("+42.133724     ", "{<+15f}",  42.133724f);
 
   // Alignment of negative floats with 0 fill and plus sign (fixed)
-  test_format_it<CharType>("     +42.133724", "{+015f}",   42.133724f);
-  test_format_it<CharType>("     +42.133724", "{>+015f}",  42.133724f);
-  test_format_it<CharType>("+0000042.133724", "{_+015f}",  42.133724f);
-  test_format_it<CharType>("+42.133724     ", "{<+015f}",  42.133724f);
+  test_format_it<CharT>("     +42.133724", "{+015f}",   42.133724f);
+  test_format_it<CharT>("     +42.133724", "{>+015f}",  42.133724f);
+  test_format_it<CharT>("+0000042.133724", "{_+015f}",  42.133724f);
+  test_format_it<CharT>("+42.133724     ", "{<+015f}",  42.133724f);
 
   // Alignment of positive floats with space (fixed)
-  test_format_it<CharType>("      42.133724", "{ 15f}",   42.133724f);
-  test_format_it<CharType>("      42.133724", "{> 15f}",  42.133724f);
-  test_format_it<CharType>("      42.133724", "{_ 15f}",  42.133724f);
-  test_format_it<CharType>(" 42.133724     ", "{< 15f}",  42.133724f);
+  test_format_it<CharT>("      42.133724", "{ 15f}",   42.133724f);
+  test_format_it<CharT>("      42.133724", "{> 15f}",  42.133724f);
+  test_format_it<CharT>("      42.133724", "{_ 15f}",  42.133724f);
+  test_format_it<CharT>(" 42.133724     ", "{< 15f}",  42.133724f);
 
   // Alignment of negative floats with 0 fill and space (fixed)
-  test_format_it<CharType>("      42.133724", "{ 015f}",   42.133724f);
-  test_format_it<CharType>("      42.133724", "{> 015f}",  42.133724f);
-  test_format_it<CharType>(" 0000042.133724", "{_ 015f}",  42.133724f);
-  test_format_it<CharType>(" 42.133724     ", "{< 015f}",  42.133724f);
+  test_format_it<CharT>("      42.133724", "{ 015f}",   42.133724f);
+  test_format_it<CharT>("      42.133724", "{> 015f}",  42.133724f);
+  test_format_it<CharT>(" 0000042.133724", "{_ 015f}",  42.133724f);
+  test_format_it<CharT>(" 42.133724     ", "{< 015f}",  42.133724f);
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_scientific_float_alignment() {
   // Alignment of negative floats (scientific)
-  test_format_it<CharType>("  -4.213372e+01", "{15e}",   -42.133724f);
-  test_format_it<CharType>("  -4.213372e+01", "{>15e}",  -42.133724f);
-  test_format_it<CharType>("-  4.213372e+01", "{_15e}",  -42.133724f);
-  test_format_it<CharType>("-4.213372e+01  ", "{<15e}",  -42.133724f);
+  test_format_it<CharT>("  -4.213372e+01", "{15e}",   -42.133724f);
+  test_format_it<CharT>("  -4.213372e+01", "{>15e}",  -42.133724f);
+  test_format_it<CharT>("-  4.213372e+01", "{_15e}",  -42.133724f);
+  test_format_it<CharT>("-4.213372e+01  ", "{<15e}",  -42.133724f);
 
   // Alignment of negative floats with 0 fill (scientific)
-  test_format_it<CharType>("  -4.213372e+01", "{015e}",   -42.133724f);
-  test_format_it<CharType>("  -4.213372e+01", "{>015e}",  -42.133724f);
-  test_format_it<CharType>("-004.213372e+01", "{_015e}",  -42.133724f);
-  test_format_it<CharType>("-4.213372e+01  ", "{<015e}",  -42.133724f);
+  test_format_it<CharT>("  -4.213372e+01", "{015e}",   -42.133724f);
+  test_format_it<CharT>("  -4.213372e+01", "{>015e}",  -42.133724f);
+  test_format_it<CharT>("-004.213372e+01", "{_015e}",  -42.133724f);
+  test_format_it<CharT>("-4.213372e+01  ", "{<015e}",  -42.133724f);
 
   // Alignment of positive floats with plus sign (scientific)
-  test_format_it<CharType>("  +4.213372e+01", "{+15e}",   42.133724f);
-  test_format_it<CharType>("  +4.213372e+01", "{>+15e}",  42.133724f);
-  test_format_it<CharType>("+  4.213372e+01", "{_+15e}",  42.133724f);
-  test_format_it<CharType>("+4.213372e+01  ", "{<+15e}",  42.133724f);
+  test_format_it<CharT>("  +4.213372e+01", "{+15e}",   42.133724f);
+  test_format_it<CharT>("  +4.213372e+01", "{>+15e}",  42.133724f);
+  test_format_it<CharT>("+  4.213372e+01", "{_+15e}",  42.133724f);
+  test_format_it<CharT>("+4.213372e+01  ", "{<+15e}",  42.133724f);
 
   // Alignment of negative floats with 0 fill and plus sign (scientific)
-  test_format_it<CharType>("  +4.213372e+01", "{+015e}",   42.133724f);
-  test_format_it<CharType>("  +4.213372e+01", "{>+015e}",  42.133724f);
-  test_format_it<CharType>("+004.213372e+01", "{_+015e}",  42.133724f);
-  test_format_it<CharType>("+4.213372e+01  ", "{<+015e}",  42.133724f);
+  test_format_it<CharT>("  +4.213372e+01", "{+015e}",   42.133724f);
+  test_format_it<CharT>("  +4.213372e+01", "{>+015e}",  42.133724f);
+  test_format_it<CharT>("+004.213372e+01", "{_+015e}",  42.133724f);
+  test_format_it<CharT>("+4.213372e+01  ", "{<+015e}",  42.133724f);
 
   // Alignment of positive floats with space (scientific)
-  test_format_it<CharType>("   4.213372e+01", "{ 15e}",   42.133724f);
-  test_format_it<CharType>("   4.213372e+01", "{> 15e}",  42.133724f);
-  test_format_it<CharType>("   4.213372e+01", "{_ 15e}",  42.133724f);
-  test_format_it<CharType>(" 4.213372e+01  ", "{< 15e}",  42.133724f);
+  test_format_it<CharT>("   4.213372e+01", "{ 15e}",   42.133724f);
+  test_format_it<CharT>("   4.213372e+01", "{> 15e}",  42.133724f);
+  test_format_it<CharT>("   4.213372e+01", "{_ 15e}",  42.133724f);
+  test_format_it<CharT>(" 4.213372e+01  ", "{< 15e}",  42.133724f);
 
   // Alignment of negative floats with 0 fill and space (scientific)
-  test_format_it<CharType>("   4.213372e+01", "{ 015e}",   42.133724f);
-  test_format_it<CharType>("   4.213372e+01", "{> 015e}",  42.133724f);
-  test_format_it<CharType>(" 004.213372e+01", "{_ 015e}",  42.133724f);
-  test_format_it<CharType>(" 4.213372e+01  ", "{< 015e}",  42.133724f);
+  test_format_it<CharT>("   4.213372e+01", "{ 015e}",   42.133724f);
+  test_format_it<CharT>("   4.213372e+01", "{> 015e}",  42.133724f);
+  test_format_it<CharT>(" 004.213372e+01", "{_ 015e}",  42.133724f);
+  test_format_it<CharT>(" 4.213372e+01  ", "{< 015e}",  42.133724f);
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_fixed_float_precision() {
-  test_format_it<CharType>("1.2345678900000", "{.13f}", 1.234567890);
-  test_format_it<CharType>("1.234567890000",  "{.12f}", 1.234567890);
-  test_format_it<CharType>("1.23456789000",   "{.11f}", 1.234567890);
-  test_format_it<CharType>("1.2345678900",    "{.10f}", 1.234567890);
-  test_format_it<CharType>("1.234567890",     "{.9f}",  1.234567890);
-  test_format_it<CharType>("1.23456789",      "{.8f}",  1.234567890);
-  test_format_it<CharType>("1.2345679",       "{.7f}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.234568",        "{.6f}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.23457",         "{.5f}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.2346",          "{.4f}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.235",           "{.3f}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.23",            "{.2f}",  1.234567890);
-  test_format_it<CharType>("1.2",             "{.1f}",  1.234567890);
-  test_format_it<CharType>("1",               "{.0f}",  1.234567890);
+  test_format_it<CharT>("1.2345678900000", "{.13f}", 1.234567890);
+  test_format_it<CharT>("1.234567890000",  "{.12f}", 1.234567890);
+  test_format_it<CharT>("1.23456789000",   "{.11f}", 1.234567890);
+  test_format_it<CharT>("1.2345678900",    "{.10f}", 1.234567890);
+  test_format_it<CharT>("1.234567890",     "{.9f}",  1.234567890);
+  test_format_it<CharT>("1.23456789",      "{.8f}",  1.234567890);
+  test_format_it<CharT>("1.2345679",       "{.7f}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.234568",        "{.6f}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.23457",         "{.5f}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.2346",          "{.4f}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.235",           "{.3f}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.23",            "{.2f}",  1.234567890);
+  test_format_it<CharT>("1.2",             "{.1f}",  1.234567890);
+  test_format_it<CharT>("1",               "{.0f}",  1.234567890);
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_scientific_float_precision() {
-  test_format_it<CharType>("1.2345678900000e+00", "{.13e}", 1.234567890);
-  test_format_it<CharType>("1.234567890000e+00",  "{.12e}", 1.234567890);
-  test_format_it<CharType>("1.23456789000e+00",   "{.11e}", 1.234567890);
-  test_format_it<CharType>("1.2345678900e+00",    "{.10e}", 1.234567890);
-  test_format_it<CharType>("1.234567890e+00",     "{.9e}",  1.234567890);
-  test_format_it<CharType>("1.23456789e+00",      "{.8e}",  1.234567890);
-  test_format_it<CharType>("1.2345679e+00",       "{.7e}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.234568e+00",        "{.6e}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.23457e+00",         "{.5e}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.2346e+00",          "{.4e}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.235e+00",           "{.3e}",  1.234567890); // rounding!
-  test_format_it<CharType>("1.23e+00",            "{.2e}",  1.234567890);
-  test_format_it<CharType>("1.2e+00",             "{.1e}",  1.234567890);
-  test_format_it<CharType>("1e+00",               "{.0e}",  1.234567890);
+  test_format_it<CharT>("1.2345678900000e+00", "{.13e}", 1.234567890);
+  test_format_it<CharT>("1.234567890000e+00",  "{.12e}", 1.234567890);
+  test_format_it<CharT>("1.23456789000e+00",   "{.11e}", 1.234567890);
+  test_format_it<CharT>("1.2345678900e+00",    "{.10e}", 1.234567890);
+  test_format_it<CharT>("1.234567890e+00",     "{.9e}",  1.234567890);
+  test_format_it<CharT>("1.23456789e+00",      "{.8e}",  1.234567890);
+  test_format_it<CharT>("1.2345679e+00",       "{.7e}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.234568e+00",        "{.6e}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.23457e+00",         "{.5e}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.2346e+00",          "{.4e}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.235e+00",           "{.3e}",  1.234567890); // rounding!
+  test_format_it<CharT>("1.23e+00",            "{.2e}",  1.234567890);
+  test_format_it<CharT>("1.2e+00",             "{.1e}",  1.234567890);
+  test_format_it<CharT>("1e+00",               "{.0e}",  1.234567890);
 }
 
 
-template<typename CharType>
+template<typename CharT>
+void test_float_specials() {
+  // Basic handling
+  test_format_it<CharT>("nan", "{f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("nan", "{f}", std::numeric_limits<double>::quiet_NaN());
+  test_format_it<CharT>("nan", "{e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("nan", "{e}", std::numeric_limits<double>::quiet_NaN());
+
+  test_format_it<CharT>("inf", "{f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("inf", "{f}",  std::numeric_limits<double>::infinity());
+  test_format_it<CharT>("-inf", "{f}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf", "{f}", -std::numeric_limits<double>::infinity());
+
+  test_format_it<CharT>("inf", "{e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("inf", "{e}",  std::numeric_limits<double>::infinity());
+  test_format_it<CharT>("-inf", "{e}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf", "{e}", -std::numeric_limits<double>::infinity());
+
+  // Alignment and filling (inf)
+
+  // No fill
+  test_format_it<CharT>("     inf", "{8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("inf     ", "{<8e}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("    +inf", "{+8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("+    inf", "{_+8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("+inf    ", "{<+8e}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("     inf", "{8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("inf     ", "{<8f}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("    +inf", "{+8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("+    inf", "{_+8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("+inf    ", "{<+8f}", std::numeric_limits<float>::infinity());
+
+
+  // Space fill
+  test_format_it<CharT>("     inf", "{ 8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 8e}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("     inf", "{ 8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 8e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 8e}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("     inf", "{ 8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 8f}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("     inf", "{ 8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 8f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 8f}", std::numeric_limits<float>::infinity());
+
+
+  // Zero fill
+  test_format_it<CharT>("     inf", "{ 08e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 08e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 08e}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("     inf", "{ 08e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 08e}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 08e}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("     inf", "{ 08f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 08f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 08f}", std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("     inf", "{ 08f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("     inf", "{_ 08f}", std::numeric_limits<float>::infinity());
+  test_format_it<CharT>(" inf    ", "{< 08f}", std::numeric_limits<float>::infinity());
+
+
+  // Alignment and filling (-inf)
+
+  // No fill
+  test_format_it<CharT>("    -inf", "{8e}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-    inf", "{_8e}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf    ", "{<8e}", -std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("    -inf", "{8f}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-    inf", "{_8f}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf    ", "{<8f}", -std::numeric_limits<float>::infinity());
+
+  
+  // Space fill
+  test_format_it<CharT>("    -inf", "{ 8e}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-    inf", "{_ 8e}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf    ", "{< 8e}", -std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("    -inf", "{ 8f}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-    inf", "{_ 8f}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf    ", "{< 8f}", -std::numeric_limits<float>::infinity());
+
+
+  // Zero fill
+  test_format_it<CharT>("    -inf", "{ 08e}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-    inf", "{_ 08e}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf    ", "{< 08e}", -std::numeric_limits<float>::infinity());
+
+  test_format_it<CharT>("    -inf", "{ 08f}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-    inf", "{_ 08f}", -std::numeric_limits<float>::infinity());
+  test_format_it<CharT>("-inf    ", "{< 08f}", -std::numeric_limits<float>::infinity());
+
+
+  // Alignment and filling (NaN)
+  // No fill
+  test_format_it<CharT>("     nan", "{8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("nan     ", "{<8e}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{+8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_+8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{<+8e}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("nan     ", "{<8f}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{+8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_+8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{<+8f}", std::numeric_limits<float>::quiet_NaN());
+
+
+  // Space fill
+  test_format_it<CharT>("     nan", "{ 8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 8e}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{ 8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 8e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 8e}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{ 8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 8f}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{ 8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 8f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 8f}", std::numeric_limits<float>::quiet_NaN());
+
+
+  // Zero fill
+  test_format_it<CharT>("     nan", "{ 08e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 08e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 08e}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{ 08e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 08e}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 08e}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{ 08f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 08f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 08f}", std::numeric_limits<float>::quiet_NaN());
+
+  test_format_it<CharT>("     nan", "{ 08f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>("     nan", "{_ 08f}", std::numeric_limits<float>::quiet_NaN());
+  test_format_it<CharT>(" nan    ", "{< 08f}", std::numeric_limits<float>::quiet_NaN());
+
+}
+
+
+template<typename CharT>
 void test_float_formatters() {
-  test_fixed_float_alignment<CharType>();
-  test_scientific_float_alignment<CharType>();
-  test_fixed_float_precision<CharType>();
-  test_scientific_float_precision<CharType>();
+  test_fixed_float_alignment<CharT>();
+  test_scientific_float_alignment<CharT>();
+  test_fixed_float_precision<CharT>();
+  test_scientific_float_precision<CharT>();
+  test_float_specials<CharT>();
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_int_alignment() {
   // Lowest possible negative integers
-  test_format_it<CharType>("-128",                 "{d}", std::numeric_limits<int8_t>::min());
-  test_format_it<CharType>("-32768",               "{d}", std::numeric_limits<int16_t>::min());
-  test_format_it<CharType>("-2147483648",          "{d}", std::numeric_limits<int32_t>::min());
-  test_format_it<CharType>("-9223372036854775808", "{d}", std::numeric_limits<int64_t>::min());
+  test_format_it<CharT>("-128",                 "{d}", std::numeric_limits<int8_t>::min());
+  test_format_it<CharT>("-32768",               "{d}", std::numeric_limits<int16_t>::min());
+  test_format_it<CharT>("-2147483648",          "{d}", std::numeric_limits<int32_t>::min());
+  test_format_it<CharT>("-9223372036854775808", "{d}", std::numeric_limits<int64_t>::min());
 
   // Alignment of negative integers
-  test_format_it<CharType>("  -42", "{5d}",   -42);
-  test_format_it<CharType>("  -42", "{>5d}",  -42);
-  test_format_it<CharType>("-  42", "{_5d}",  -42);
-  test_format_it<CharType>("-42  ", "{<5d}",  -42);
+  test_format_it<CharT>("  -42", "{5d}",   -42);
+  test_format_it<CharT>("  -42", "{>5d}",  -42);
+  test_format_it<CharT>("-  42", "{_5d}",  -42);
+  test_format_it<CharT>("-42  ", "{<5d}",  -42);
 
   // Alignment of negative integers with 0 fill
-  test_format_it<CharType>("  -42", "{05d}",   -42);
-  test_format_it<CharType>("  -42", "{>05d}",  -42);
-  test_format_it<CharType>("-0042", "{_05d}",  -42);
-  test_format_it<CharType>("-42  ", "{<05d}",  -42);
+  test_format_it<CharT>("  -42", "{05d}",   -42);
+  test_format_it<CharT>("  -42", "{>05d}",  -42);
+  test_format_it<CharT>("-0042", "{_05d}",  -42);
+  test_format_it<CharT>("-42  ", "{<05d}",  -42);
 
   // Alignment of positive integers with plus sign
-  test_format_it<CharType>("  +42", "{+5d}",   42);
-  test_format_it<CharType>("  +42", "{>+5d}",  42);
-  test_format_it<CharType>("+  42", "{_+5d}",  42);
-  test_format_it<CharType>("+42  ", "{<+5d}",  42);
+  test_format_it<CharT>("  +42", "{+5d}",   42);
+  test_format_it<CharT>("  +42", "{>+5d}",  42);
+  test_format_it<CharT>("+  42", "{_+5d}",  42);
+  test_format_it<CharT>("+42  ", "{<+5d}",  42);
 
   // Alignment of negative integers with 0 fill and plus sign
-  test_format_it<CharType>("  +42", "{+05d}",   42);
-  test_format_it<CharType>("  +42", "{>+05d}",  42);
-  test_format_it<CharType>("+0042", "{_+05d}",  42);
-  test_format_it<CharType>("+42  ", "{<+05d}",  42);
+  test_format_it<CharT>("  +42", "{+05d}",   42);
+  test_format_it<CharT>("  +42", "{>+05d}",  42);
+  test_format_it<CharT>("+0042", "{_+05d}",  42);
+  test_format_it<CharT>("+42  ", "{<+05d}",  42);
 
   // Alignment of positive integers with plus sign (unsigned type)
-  test_format_it<CharType>("  +42", "{+5d}",   42U);
-  test_format_it<CharType>("  +42", "{>+5d}",  42U);
-  test_format_it<CharType>("+  42", "{_+5d}",  42U);
-  test_format_it<CharType>("+42  ", "{<+5d}",  42U);
+  test_format_it<CharT>("  +42", "{+5d}",   42U);
+  test_format_it<CharT>("  +42", "{>+5d}",  42U);
+  test_format_it<CharT>("+  42", "{_+5d}",  42U);
+  test_format_it<CharT>("+42  ", "{<+5d}",  42U);
 
   // Alignment of negative integers with 0 fill and plus sign (unsigned type)
-  test_format_it<CharType>("  +42", "{+05d}",   42U);
-  test_format_it<CharType>("  +42", "{>+05d}",  42U);
-  test_format_it<CharType>("+0042", "{_+05d}",  42U);
-  test_format_it<CharType>("+42  ", "{<+05d}",  42U);
+  test_format_it<CharT>("  +42", "{+05d}",   42U);
+  test_format_it<CharT>("  +42", "{>+05d}",  42U);
+  test_format_it<CharT>("+0042", "{_+05d}",  42U);
+  test_format_it<CharT>("+42  ", "{<+05d}",  42U);
 
   // Alignment of positive integers with space
-  test_format_it<CharType>("   42", "{ 5d}",   42);
-  test_format_it<CharType>("   42", "{> 5d}",  42);
-  test_format_it<CharType>("   42", "{_ 5d}",  42);
-  test_format_it<CharType>(" 42  ", "{< 5d}",  42);
+  test_format_it<CharT>("   42", "{ 5d}",   42);
+  test_format_it<CharT>("   42", "{> 5d}",  42);
+  test_format_it<CharT>("   42", "{_ 5d}",  42);
+  test_format_it<CharT>(" 42  ", "{< 5d}",  42);
 
   // Alignment of negative integers with 0 fill and space
-  test_format_it<CharType>("   42", "{ 05d}",   42);
-  test_format_it<CharType>("   42", "{> 05d}",  42);
-  test_format_it<CharType>(" 0042", "{_ 05d}",  42);
-  test_format_it<CharType>(" 42  ", "{< 05d}",  42);
+  test_format_it<CharT>("   42", "{ 05d}",   42);
+  test_format_it<CharT>("   42", "{> 05d}",  42);
+  test_format_it<CharT>(" 0042", "{_ 05d}",  42);
+  test_format_it<CharT>(" 42  ", "{< 05d}",  42);
 
   // Alignment of positive integers with space (unsigned type)
-  test_format_it<CharType>("   42", "{ 5d}",   42U);
-  test_format_it<CharType>("   42", "{> 5d}",  42U);
-  test_format_it<CharType>("   42", "{_ 5d}",  42U);
-  test_format_it<CharType>(" 42  ", "{< 5d}",  42U);
+  test_format_it<CharT>("   42", "{ 5d}",   42U);
+  test_format_it<CharT>("   42", "{> 5d}",  42U);
+  test_format_it<CharT>("   42", "{_ 5d}",  42U);
+  test_format_it<CharT>(" 42  ", "{< 5d}",  42U);
 
   // Alignment of negative integers with 0 fill and space (unsigned type)
-  test_format_it<CharType>("   42", "{ 05d}",   42U);
-  test_format_it<CharType>("   42", "{> 05d}",  42U);
-  test_format_it<CharType>(" 0042", "{_ 05d}",  42U);
-  test_format_it<CharType>(" 42  ", "{< 05d}",  42U);
+  test_format_it<CharT>("   42", "{ 05d}",   42U);
+  test_format_it<CharT>("   42", "{> 05d}",  42U);
+  test_format_it<CharT>(" 0042", "{_ 05d}",  42U);
+  test_format_it<CharT>(" 42  ", "{< 05d}",  42U);
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_int_bases() {
   // Different integer bases
-  test_format_it<CharType>("1",               "{x}", uint8_t(0x01));
-  test_format_it<CharType>("123",             "{x}", uint16_t(0x0123));
-  test_format_it<CharType>("1234567",         "{x}", uint32_t(0x01234567));
-  test_format_it<CharType>("123456789abcdef", "{x}", uint64_t(0x0123456789abcdef));
+  test_format_it<CharT>("1",               "{x}", uint8_t(0x01));
+  test_format_it<CharT>("123",             "{x}", uint16_t(0x0123));
+  test_format_it<CharT>("1234567",         "{x}", uint32_t(0x01234567));
+  test_format_it<CharT>("123456789abcdef", "{x}", uint64_t(0x0123456789abcdef));
 
-  test_format_it<CharType>("d6",               "{x}", int8_t(-42));
-  test_format_it<CharType>("ffd6",             "{x}", int16_t(-42));
-  test_format_it<CharType>("ffffffd6",         "{x}", int32_t(-42));
-  test_format_it<CharType>("ffffffffffffffd6", "{x}", int64_t(-42));
+  test_format_it<CharT>("d6",               "{x}", int8_t(-42));
+  test_format_it<CharT>("ffd6",             "{x}", int16_t(-42));
+  test_format_it<CharT>("ffffffd6",         "{x}", int32_t(-42));
+  test_format_it<CharT>("ffffffffffffffd6", "{x}", int64_t(-42));
 
-  test_format_it<CharType>("20",                    "{o}", uint8_t(020));
-  test_format_it<CharType>("10000",                 "{o}", uint16_t(010000));
-  test_format_it<CharType>("2000000000",            "{o}", uint32_t(02000000000));
-  test_format_it<CharType>("100000000000000000000", "{o}", uint64_t(0100000000000000000000));
+  test_format_it<CharT>("20",                    "{o}", uint8_t(020));
+  test_format_it<CharT>("10000",                 "{o}", uint16_t(010000));
+  test_format_it<CharT>("2000000000",            "{o}", uint32_t(02000000000));
+  test_format_it<CharT>("100000000000000000000", "{o}", uint64_t(0100000000000000000000));
 
-  test_format_it<CharType>("326",                    "{o}", int8_t(-42));
-  test_format_it<CharType>("177726",                 "{o}", int16_t(-42));
-  test_format_it<CharType>("37777777726",            "{o}", int32_t(-42));
-  test_format_it<CharType>("1777777777777777777726", "{o}", int64_t(-42));
+  test_format_it<CharT>("326",                    "{o}", int8_t(-42));
+  test_format_it<CharT>("177726",                 "{o}", int16_t(-42));
+  test_format_it<CharT>("37777777726",            "{o}", int32_t(-42));
+  test_format_it<CharT>("1777777777777777777726", "{o}", int64_t(-42));
 
-  test_format_it<CharType>("1",                                                         "{b}", uint8_t(0x01));
-  test_format_it<CharType>("100100011",                                                 "{b}", uint16_t(0x0123));
-  test_format_it<CharType>("1001000110100010101100111",                                 "{b}", uint32_t(0x01234567));
-  test_format_it<CharType>("100100011010001010110011110001001101010111100110111101111", "{b}", uint64_t(0x0123456789abcdef));
+  test_format_it<CharT>("1",                                                         "{b}", uint8_t(0x01));
+  test_format_it<CharT>("100100011",                                                 "{b}", uint16_t(0x0123));
+  test_format_it<CharT>("1001000110100010101100111",                                 "{b}", uint32_t(0x01234567));
+  test_format_it<CharT>("100100011010001010110011110001001101010111100110111101111", "{b}", uint64_t(0x0123456789abcdef));
 
-  test_format_it<CharType>("11010110",                                                         "{b}", int8_t(-42));
-  test_format_it<CharType>("1111111111010110",                                                 "{b}", int16_t(-42));
-  test_format_it<CharType>("11111111111111111111111111010110",                                 "{b}", int32_t(-42));
-  test_format_it<CharType>("1111111111111111111111111111111111111111111111111111111111010110", "{b}", int64_t(-42));
+  test_format_it<CharT>("11010110",                                                         "{b}", int8_t(-42));
+  test_format_it<CharT>("1111111111010110",                                                 "{b}", int16_t(-42));
+  test_format_it<CharT>("11111111111111111111111111010110",                                 "{b}", int32_t(-42));
+  test_format_it<CharT>("1111111111111111111111111111111111111111111111111111111111010110", "{b}", int64_t(-42));
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_int_formatters() {
-  test_int_alignment<CharType>();
-  test_int_bases<CharType>();
+  test_int_alignment<CharT>();
+  test_int_bases<CharT>();
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_basic_formatters() {
-  test_float_formatters<CharType>();
-  test_int_formatters<CharType>();
+  test_float_formatters<CharT>();
+  test_int_formatters<CharT>();
 
   // Characters
-  test_format_it<CharType>("f", "{c}", 'f');
+  test_format_it<CharT>("f", "{c}", 'f');
 
   // Strings
-  test_format_it<CharType>("yyy",        "{s}",    cheaty_cast_string<CharType>("yyy"));
-  test_format_it<CharType>("       yyy", "{10s}",  cheaty_cast_string<CharType>("yyy"));
-  test_format_it<CharType>("       yyy", "{>10s}", cheaty_cast_string<CharType>("yyy"));
-  test_format_it<CharType>("yyy       ", "{<10s}", cheaty_cast_string<CharType>("yyy"));
+  test_format_it<CharT>("yyy",        "{s}",    cheaty_cast_string<CharT>("yyy"));
+  test_format_it<CharT>("       yyy", "{10s}",  cheaty_cast_string<CharT>("yyy"));
+  test_format_it<CharT>("       yyy", "{>10s}", cheaty_cast_string<CharT>("yyy"));
+  test_format_it<CharT>("yyy       ", "{<10s}", cheaty_cast_string<CharT>("yyy"));
 
   // C-Strings
-  auto tmp_str = cheaty_cast_string<CharType>("yyy");
-  test_format_it<CharType>("yyy",        "{s}",    tmp_str.c_str());
-  test_format_it<CharType>("       yyy", "{10s}",  tmp_str.c_str());
-  test_format_it<CharType>("       yyy", "{>10s}", tmp_str.c_str());
-  test_format_it<CharType>("yyy       ", "{<10s}", tmp_str.c_str());
+  auto tmp_str = cheaty_cast_string<CharT>("yyy");
+  test_format_it<CharT>("yyy",        "{s}",    tmp_str.c_str());
+  test_format_it<CharT>("       yyy", "{10s}",  tmp_str.c_str());
+  test_format_it<CharT>("       yyy", "{>10s}", tmp_str.c_str());
+  test_format_it<CharT>("yyy       ", "{<10s}", tmp_str.c_str());
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void test_multiple_formatters() {
-  test_format_it<CharType>("AAfooXX42YYbarBB", "AA{}XX{}YY{}BB", cheaty_cast_string<CharType>("foo"), 42, cheaty_cast_string<CharType>("bar"));
+  test_format_it<CharT>("AAfooXX42YYbarBB", "AA{}XX{}YY{}BB", cheaty_cast_string<CharT>("foo"), 42, cheaty_cast_string<CharT>("bar"));
 }
 
 
-template<typename CharType>
+template<typename CharT>
 void run_tests() {
   // Test formatter function with iterators
-  test_basic_formatters<CharType>();
-  test_multiple_formatters<CharType>();
+  test_basic_formatters<CharT>();
+  test_multiple_formatters<CharT>();
 }
 
 
@@ -325,11 +491,11 @@ struct test_struct {
   int b;
 };
 
-template<typename CharType, typename OutputIterator>
-OutputIterator format_element(OutputIterator out, flossy::conversion_options options, test_struct const& value) {
-  out = flossy::format_element<CharType>(out, options, value.a);
-  out = flossy::format_element<CharType>(out, flossy::conversion_format::character, '-');
-  out = flossy::format_element<CharType>(out, options, value.b);
+template<typename CharT, typename OutIt>
+OutIt format_element(OutIt out, flossy::conversion_options options, test_struct const& value) {
+  out = flossy::format_element<CharT>(out, flossy::conversion_format::normal, value.a);
+  out = flossy::format_element<CharT>(out, flossy::conversion_format::character, '-');
+  out = flossy::format_element<CharT>(out, flossy::conversion_format::normal, value.b);
   return out;
 }
 

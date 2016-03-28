@@ -445,20 +445,19 @@ namespace {
     // Format as char string, convert to wider character types later (in std::copy).
     // This works with char32_t, while using a basic_ostringstream<char32_t> doesn't.
     // I did not investigate further :)
-    std::ostringstream sstr;
+    std::stringstream sstr;
     sstr.flags(options.format != conversion_format::scientific_float ? 
                  std::ios::fixed : std::ios::scientific);
     sstr.precision(options.precision);
 
     bool const neg = std::signbit(value);
     sstr << std::abs(value);
-    auto const str = sstr.str();
 
     auto out_func = [&]() {
-      return std::copy(str.begin(), str.end(), out);
+      return std::copy(std::istreambuf_iterator<char>(sstr.rdbuf()), std::istreambuf_iterator<char>(), out);
     };
 
-    return output_padded_with_sign<CharType>(out, out_func, str.length(), options, sign_from_format(neg, options.pos_sign));
+    return output_padded_with_sign<CharType>(out, out_func, sstr.tellp(), options, sign_from_format(neg, options.pos_sign));
   }
 
 #elif FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_FAST

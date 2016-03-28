@@ -320,6 +320,19 @@ void run_tests() {
 }
 
 
+struct test_struct {
+  int a;
+  int b;
+};
+
+template<typename CharType, typename OutputIterator>
+OutputIterator format_element(OutputIterator out, flossy::conversion_options options, test_struct const& value) {
+  out = flossy::format_element<CharType>(out, options, value.a);
+  out = flossy::format_element<CharType>(out, flossy::conversion_format::character, '-');
+  out = flossy::format_element<CharType>(out, options, value.b);
+  return out;
+}
+
 int main() {
   run_tests<char>();
   run_tests<wchar_t>();
@@ -342,6 +355,10 @@ int main() {
     flossy::format(tmp, L"{}", L"foo");
     assert_equal<wchar_t>("void flossy::format(wostringstream&, string)", L"foo", tmp.str());
   }
+
+  test_struct test { 42, 1337 };
+  test_format_it<char>("42-1337", "{}", test);
+  test_format_it<wchar_t>("42-1337", "{}", test);
 
 
   std::cout << "Performed " << testcount << " tests, " << (testcount - failed) << " passed, " << failed << " failed." << std::endl;

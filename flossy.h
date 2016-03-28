@@ -27,7 +27,7 @@
   sign: [+ ]
   width: [0-9]+
   precision: [0-9]+
-  type: [doxfes]
+  type: [doxfesb]
 */
 
 
@@ -38,42 +38,54 @@ public:
   using std::invalid_argument::invalid_argument;
 };
 
+// Used only for types that allow different representations, i.e. not for strings
+enum class conversion_format {
+  binary,
+  decimal,
+  octal,
+  hex,
+  normal_float,
+  scientific_float,
+  normal,
+  string,
+  character,
+  fail
+};
+
+enum class fill_alignment {
+  left,
+  intern,
+  right
+};
+
+enum class pos_sign_type {
+  plus,
+  space,
+  none
+};
+
+struct conversion_options {
+  conversion_format  format    = conversion_format::normal;
+  int                width     = 0;
+  int                precision = 6;
+  fill_alignment     alignment = fill_alignment::left;
+  pos_sign_type      pos_sign  = pos_sign_type::none;
+  bool               zero_fill = false;
+
+  conversion_options(conversion_format format = conversion_format::normal,
+                     int width = 0, int precision = 6,
+                     fill_alignment align = fill_alignment::left,
+                     pos_sign_type pos_sign = pos_sign_type::none,
+                     bool zero_fill = false)
+    : format(format)
+    , width(width)
+    , precision(precision)
+    , alignment(align)
+    , pos_sign(pos_sign)
+    , zero_fill(zero_fill) {}
+};
+
 namespace {
-  // Used only for types that allow different representations, i.e. not for strings
-  enum class conversion_format {
-    binary,
-    decimal,
-    octal,
-    hex,
-    normal_float,
-    scientific_float,
-    normal,
-    string,
-    character,
-    fail
-  };
-
-  enum class fill_alignment {
-    left,
-    intern,
-    right
-  };
-
-  enum class pos_sign_type {
-    plus,
-    space,
-    none
-  };
-
-  struct conversion_options {
-    int                width     = 0;
-    int                precision = 6;
-    fill_alignment     alignment = fill_alignment::left;
-    conversion_format  format    = conversion_format::normal;
-    pos_sign_type      pos_sign  = pos_sign_type::none;
-    bool               prec_expl = false;
-    bool               zero_fill = false;
-  };
 
   template<typename InputIterator>
   inline void ensure_not_equal(InputIterator const& a, InputIterator const& b) {
@@ -179,7 +191,6 @@ namespace {
       if(*it == '.') {
         ++it;
         options.precision = read_number();
-        options.prec_expl = true;
       }
     }
 
@@ -223,23 +234,6 @@ namespace {
     return out;
   }
 
-  /* String formatter for C-Strings */
-  template<typename CharType, typename OutputIterator>
-  OutputIterator format_element(OutputIterator out, conversion_options const& options, CharType const* value) {
-    CharType const* end = value;
-    while(*end != CharType('\0')) {
-      ++end;
-    }
-
-    return format_string<CharType>(out, options, value, end);
-  }
-
-
-  /* String formatter for C++ strings */
-  template<typename CharType, typename OutputIterator>
-  void format_element(OutputIterator &out, conversion_options const& options, std::basic_string<CharType> const& value) {
-    format_string<CharType>(out, options, value.begin(), value.end());
-  }
 
 
   /* digit_buffer for integer conversions */
@@ -377,8 +371,8 @@ namespace {
 
   // Format an unsigned integer without validity checks for given flags with given sign and options.
   template<typename CharType, typename OutputIterator, typename ValueType>
-  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
-  format_integer_unchecked(OutputIterator &out, ValueType value, bool negative, conversion_options const& options) {
+  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value, OutputIterator>::type
+  format_integer_unchecked(OutputIterator out, ValueType value, bool negative, conversion_options const& options) {
     // Special case: Conversion to character requested
     if(options.format == conversion_format::character) {
       *out++ = CharType(value);
@@ -388,24 +382,19 @@ namespace {
       out = output_integer(out, digits, options, sign_from_format(negative, options.pos_sign));
                            
     }
+
+    return out;
   }
 
   // Format unsigned integer with checks for flag validity with given sign and options.
   template<typename CharType, typename OutputIterator, typename ValueType>
-  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
-  format_integer(OutputIterator &out, ValueType value, bool negative, conversion_options options) {
+  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value, OutputIterator>::type
+  format_integer(OutputIterator out, ValueType value, bool negative, conversion_options options) {
     if(options.alignment != fill_alignment::intern) {
       options.zero_fill = false;
     }
 
-    format_integer_unchecked<CharType>(out, value, negative, options);
-  }
-
-  // Formatter function for unsigned integers
-  template<typename CharType, typename OutputIterator, typename ValueType>
-  typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value>::type
-  format_element(OutputIterator &out, conversion_options options, ValueType value) {
-    format_integer<CharType>(out, value, false, options);
+    return format_integer_unchecked<CharType>(out, value, negative, options);
   }
 
   // Absolute value of given value as the unsigned type with same width as input type (this allows
@@ -418,19 +407,55 @@ namespace {
       return ~(static_cast<typename std::make_unsigned<ValueType>::type>(value) - 1U);
     }
   }
+}
 
-  // Formatter function for a signed integer. Converts the given number bitwise to an unsigned value
-  // if the requested conversion is _not_ decimal. For decimal, it passes the absolute value and sign bit
-  // appropriately.
-  template<typename CharType, typename OutputIterator, typename ValueType>
-  typename std::enable_if<std::is_integral<ValueType>::value && std::is_signed<ValueType>::value>::type
-  format_element(OutputIterator &out, conversion_options options, ValueType value) {
-    if(options.format != conversion_format::normal and options.format != conversion_format::decimal) {
-      format_integer<CharType>(out, static_cast<typename std::make_unsigned<ValueType>::type>(value), false, options);
-    } else {
-      format_integer<CharType>(out, make_positive(value), value < 0, options);
-    }
+
+/* String formatter for C-Strings */
+template<typename CharType, typename OutputIterator>
+OutputIterator format_element(OutputIterator out, conversion_options const& options, CharType const* value) {
+  CharType const* end = value;
+  while(*end != CharType('\0')) {
+    ++end;
   }
+
+  return format_string<CharType>(out, options, value, end);
+}
+
+
+/* String formatter for C++ strings */
+template<typename CharType, typename OutputIterator>
+OutputIterator format_element(OutputIterator out, conversion_options const& options, std::basic_string<CharType> const& value) {
+  return format_string<CharType>(out, options, value.begin(), value.end());
+}
+
+template<typename OutputIterator, typename InputIterator>
+OutputIterator format_it(OutputIterator out, InputIterator start, InputIterator const end) {
+  // If there are not value left to convert, just copy the rest of the input.
+  // Ignore further conversion specifiers.
+
+  return std::copy(start, end, out);
+}
+
+
+// Formatter function for unsigned integers
+template<typename CharType, typename OutputIterator, typename ValueType>
+typename std::enable_if<std::is_integral<ValueType>::value && std::is_unsigned<ValueType>::value, OutputIterator>::type
+format_element(OutputIterator out, conversion_options options, ValueType value) {
+  return format_integer<CharType>(out, value, false, options);
+}
+
+// Formatter function for a signed integer. Converts the given number bitwise to an unsigned value
+// if the requested conversion is _not_ decimal. For decimal, it passes the absolute value and sign bit
+// appropriately.
+template<typename CharType, typename OutputIterator, typename ValueType>
+typename std::enable_if<std::is_integral<ValueType>::value && std::is_signed<ValueType>::value, OutputIterator>::type
+format_element(OutputIterator out, conversion_options options, ValueType value) {
+  if(options.format != conversion_format::normal and options.format != conversion_format::decimal) {
+    return format_integer<CharType>(out, static_cast<typename std::make_unsigned<ValueType>::type>(value), false, options);
+  } else {
+    return format_integer<CharType>(out, make_positive(value), value < 0, options);
+  }
+}
 
 
 // Formatter function for floating point numbers.
@@ -467,15 +492,6 @@ namespace {
 #else
   #error "FLOSSY_FLOAT_METHOD must be defined as FLOSSY_FLOAT_METHOD_SSTREAM, FLOSSY_FLOAT_METHOD_FAST or FLOSSY_FLOAT_METHOD_GRISU"
 #endif
-}
-
-template<typename OutputIterator, typename InputIterator>
-OutputIterator format_it(OutputIterator out, InputIterator start, InputIterator const end) {
-  // If there are not value left to convert, just copy the rest of the input.
-  // Ignore further conversion specifiers.
-
-  return std::copy(start, end, out);
-}
 
 /* Generic formatting function using interators */
 template<typename OutputIterator, typename InputIterator, typename FirstElement, typename... ElementTypes>

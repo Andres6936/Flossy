@@ -20,6 +20,17 @@ std::basic_string<CharT1> cheaty_cast_string(CharT2 const* str) {
 }
 
 
+template<typename CharT>
+void assert_equal(std::string description, std::basic_string<CharT> expect, std::basic_string<CharT> result) {
+  ++testcount;
+
+  if(result != expect) {
+    std::cout << "Test failed (" << typeid(CharT).name() << "): \"" << description << "\": \"" << cheaty_cast_string<char>(result) << "\" != \"" << cheaty_cast_string<char>(expect) << "\")\n";
+    ++failed;
+  }
+}
+
+
 // Use char-based strings for expect and format, we'll widen them appropriately.
 // This allows writing the test cases in a simpler way.
 template<typename CharT, typename... Args>
@@ -29,13 +40,7 @@ void test_format_it(std::string expect, std::string format, Args... args) {
 
   std::basic_string<CharT> output;
   flossy::format_it(std::back_inserter(output), conv_format.begin(), conv_format.end(), args...);
-
-  ++testcount;
-
-  if(output != conv_expect) {
-    std::cout << "Test failed (" << typeid(CharT).name() << "): " << format << "\": \"" << cheaty_cast_string<char>(output) << "\" != \"" << expect << "\")\n";
-    ++failed;
-  }
+  assert_equal("Format string (" + format + ")", conv_expect, output);
 }
 
 
@@ -309,6 +314,7 @@ void test_multiple_formatters() {
 
 template<typename CharType>
 void run_tests() {
+  // Test formatter function with iterators
   test_basic_formatters<CharType>();
   test_multiple_formatters<CharType>();
 }
@@ -318,5 +324,25 @@ int main() {
   run_tests<char>();
   run_tests<wchar_t>();
   run_tests<char32_t>();
+
+
+  // The following functions use the iterator based formatter function internally,
+  // just check that their interfaces work!
+  assert_equal<char>("string flossy::format(string)", "foo", flossy::format("{}", "foo"));
+  assert_equal<wchar_t>("wstring flossy::format(wstring)", L"foo", flossy::format(L"{}", L"foo"));
+
+  {
+    std::ostringstream tmp;
+    flossy::format(tmp, "{}", "foo");
+    assert_equal<char>("void flossy::format(ostringstream&, string)", "foo", tmp.str());
+  }
+
+  {
+    std::wostringstream tmp;
+    flossy::format(tmp, L"{}", L"foo");
+    assert_equal<wchar_t>("void flossy::format(wostringstream&, string)", L"foo", tmp.str());
+  }
+
+
   std::cout << "Performed " << testcount << " tests, " << (testcount - failed) << " passed, " << failed << " failed." << std::endl;
 }

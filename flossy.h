@@ -1,18 +1,111 @@
 /*
-    flossy
-
-    Copyright (C) 2016 Florian Kesseler
+    flossy 1.0
 
     This project is free software; you can redistribute it and/or modify it
-    under the terms of the MIT license. See LICENSE.md for details.
+    under the terms of the MIT license:
+
+    Copyright (c) 2016 Florian Kesseler
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
 */
 
 
-
-
-
 /*
-  Format strings cosist of any character sequence containing any number of
+  The full documentation for the public API is at the very end of this file.
+  Here is a summary:
+
+
+1. Generic formatting function using iterators:
+
+  OutIt format_it(OutIt out, InputIt start, InputIt const end, 
+                  FirstValueT const& first, ValueTs... elements)
+ 
+  This function is the main work horse of flossy. It does all the format
+  string evaluation and formatting of elements.
+  It recursively calls itself (or the "no values remain" overload above) to
+  piecewise construct the output string.
+ 
+  Parameters:
+    out          Output iterator to store the resulting string characters.
+    start        Iterator to beginning of format string.
+    end          Iterator to the character one element after the last
+                 character of the format string.
+    first        The first value to be converted.
+    elements     Remaining values to be used in later conversions.
+ 
+  Usage example:
+ 
+    std::string result;
+    std::string format_str("The first value passed is {}"
+                           ", and the second is {}!");
+    auto it = format_it(
+      std::back_inserter(result), format_str.begin(), format_str.end(), 
+      42, "foo");
+
+
+
+2. Function to format a string directly
+  
+  std::basic_string<CharT> format(std::basic_string<CharT> const & format_str,
+                                  ValueTs... elements)
+
+  Convenience function wrapper for format_it that allows formatting a format
+  string and values directly into a string and returning that.
+ 
+  Parameters:
+    format_str  Format string to be used when formatting the string. It will
+                be passed to format_it directly.
+    elements    The elements to be formatted. They are passed to format_it
+                verbatim.
+ 
+  Usage example:
+ 
+    auto result = format("The first value passed is {}, and the second is {}!"s,
+                         42, "foo");
+ 
+
+3. Function to format a string to a stream
+
+  Convenience function wrapper for format_it that allows formatting a format
+  string and values directly to an ostream:
+
+  std::basic_ostream<CharT, Traits>& format(
+    std::basic_ostream<CharT, Traits> &ostream,
+    std::basic_string<CharT> const& format_str,
+    ValueTs... elements)
+ 
+  Parameters:
+    ostream     Stream to write the resulting string to.
+    format_str  Format string to be used when formatting the string. It will
+                be passed to format_it directly.
+    elements    The elements to be formatted. They are passed to format_it
+                verbatim.
+ 
+  Usage example:
+ 
+    format(std::cout, "The first value passed is {}, and the second is {}!"s,
+           42, "foo");
+ 
+
+4. Format Strings
+
+  Format strings consist of any character sequence containing any number of
   conversion specifiers.
 
   Conversion specifiers are delimited by curly braces containing the format
@@ -68,6 +161,41 @@
   (scientific vs. fixed width) and is ignored if it doesn't make sense for the
   field currently converted.
 
+  The values have the same meaning as in printf, with the addition of 'b',
+  which outputs an integer in binary form.
+
+
+5. User Defined Types
+
+  You may add your own formatting function for any type you want. To do
+  that, you have to provide a templated function 'format_element', taking at
+  least two template parameters and exactly three function parameters:
+
+  template<typename CharT, typename OutIt>
+  OutIt format_element(OutIt out, conversion_options options, YourType value);
+
+  Mandatory template parameters:
+    CharT     Character type to generate.
+    OutIt     Output iterator type used by the format function.
+
+    You may add more template parameters if you wish, as long as they can
+    always be deduced from the type you want to convert.
+
+  Parameters:
+    out       The output iterator your format function should write to
+    options   The options selected in the format specifier (see section 4).
+    value     The value you passed in the format or format_it function.
+
+  Return value:
+    The updated `out` iterator.
+
+  You may use existing flossy::format_element functions for integers, floats,
+  characters, and strings to built upon.
+
+  conversion_options is holds the format flags specified in the format string.
+  See definition of conversion_options for more information.
+
+  There is currently no way to add your own conversion flags or options, sorry.
 */
 
 
@@ -137,6 +265,7 @@ enum class fill_alignment {
 };
 
 
+// How to display the sign of positive numbers
 enum class pos_sign_type {
   plus,
   space,
@@ -165,8 +294,8 @@ struct conversion_options {
 
 
 namespace {
-  template<typename InputIterator>
-  inline void ensure_not_equal(InputIterator const& a, InputIterator const& b)
+  template<typename InputIt>
+  inline void ensure_not_equal(InputIt const& a, InputIt const& b)
   {
     if(a == b) {
       throw format_error("unterminated {");
@@ -174,9 +303,9 @@ namespace {
   }
 
   // Helper class to parse the conversion options
-  template<typename InputIterator>
+  template<typename InputIt>
   class option_reader {
-    typedef typename std::iterator_traits<InputIterator>::value_type char_type;
+    typedef typename std::iterator_traits<InputIt>::value_type char_type;
 
     const std::initializer_list<std::pair<char_type, fill_alignment>> alignment_types {
       {'>', fill_alignment::left},
@@ -201,13 +330,13 @@ namespace {
       {'c', conversion_format::character}
     };
 
-    InputIterator &it;
-    InputIterator const end;
+    InputIt &it;
+    InputIt const end;
 
   public:
     conversion_options options;
 
-    inline option_reader(InputIterator &start, InputIterator const end)
+    inline option_reader(InputIt &start, InputIt const end)
       : it(start)
       , end(end)
     {
@@ -318,8 +447,8 @@ namespace {
 
 
   // Output string with space padding on the appropriate side
-  template<typename CharT, typename OutIt, typename InputIterator>
-  OutIt format_string(OutIt out, conversion_options const& options, InputIterator start, InputIterator end)
+  template<typename CharT, typename OutIt, typename InputIt>
+  OutIt format_string(OutIt out, conversion_options const& options, InputIt start, InputIt end)
   {
     int fill_count = options.width - (end - start);
     if(fill_count < 0) {
@@ -569,8 +698,8 @@ OutIt format_element(OutIt out, conversion_options const& options, std::basic_st
 
 // If there are not value left to convert, just copy the rest of the input.
 // Ignore further conversion specifiers.
-template<typename OutIt, typename InputIterator>
-OutIt format_it(OutIt out, InputIterator start, InputIterator const end)
+template<typename OutIt, typename InputIt>
+OutIt format_it(OutIt out, InputIt start, InputIt const end)
 {
   return std::copy(start, end, out);
 }
@@ -653,10 +782,48 @@ format_element(OutIt out, conversion_options options, ValueT value)
 #endif
 
 
-// Generic formatting function using interators
-template<typename OutIt, typename InputIterator, typename FirstElement, typename... ElementTypes>
-OutIt format_it(
-  OutIt out, InputIterator start, InputIterator const end, FirstElement const& first,ElementTypes... elements)
+// Generic formatting function using iterators
+//
+// This function is the main work horse of flossy. It does all the format
+// string evaluation and formatting of elements.
+// It recursively calls itself (or the "no values remain" overload above) to
+// piecewise construct the output string.
+//
+// Template parameters:
+//   OutIt        OutputIterator type used to write the resulting characters
+//                to. Must accept writes of the same type that dereferencing an
+//                InputIt (see below) yields.
+//   InputIt      ForwardIterator used to read the format string characters
+//                from.
+//   FirstValueT  Type of the first value to use in conversions.
+//   ValueTs      Types of the remaining values to be converted.
+//
+// Parameters:
+//   out          Output iterator to store the resulting string characters.
+//   start        Iterator to beginning of format string.
+//   end          Iterator to the character one element after the last
+//                character of the format string.
+//   first        The first value to be converted.
+//   elements     Remaining values to be used in later conversions.
+//
+// Return value:
+//   Updated 'out' iterator
+//
+// Usage example:
+//
+//   std::string result;
+//   std::string format_str("The first value passed is {}"
+//                          ", and the second is {}!");
+//   auto it = format_it(
+//     std::back_inserter(result), format_str.begin(), format_str.end(), 
+//     42, "foo");
+//
+//   'it' can then be used to append further to the string. Instead of string
+//   and back_inserter, every output iterator works, including
+//   ostream_iterator, which can be very useful.
+//
+template<typename OutIt, typename InputIt, typename FirstValueT, typename... ValueTs>
+OutIt format_it(OutIt out, InputIt start, InputIt const end, FirstValueT const& first, ValueTs... elements)
 {
   // Copy everything from start to the beginning of the first "real" (i.e. not '{{') conversion
   // specifier to out, transforming {{ into { appropriately.
@@ -669,8 +836,8 @@ OutIt format_it(
       ensure_not_equal(++start, end);
 
       if(*start != '{') {
-        auto const options = option_reader<InputIterator>(start, end).options;
-        format_element<typename std::iterator_traits<InputIterator>::value_type>(out, options, first);
+        auto const options = option_reader<InputIt>(start, end).options;
+        format_element<typename std::iterator_traits<InputIt>::value_type>(out, options, first);
         return format_it(out, start, end, elements...);
       }
 
@@ -684,9 +851,29 @@ OutIt format_it(
 }
 
 
-// Returns the formatted string
-template<typename CharT, typename... ElementTypes>
-std::basic_string<CharT> format(std::basic_string<CharT> const & format_str, ElementTypes... elements)
+// Convenience function wrapper for format_it that allows formatting a format
+// string and values directly into a string and returning that.
+//
+// Template parameters:
+//   CharT       Character type to generate in the output string.
+//   ValueTs     Types of the values to be formatted.
+//
+// Parameters:
+//   format_str  Format string to be used when formatting the string. It will
+//               be passed to format_it directly.
+//   elements    The elements to be formatted. They are passed to format_it
+//               verbatim.
+//
+// Return value:
+//   The formatted string.
+//
+// Usage example:
+//
+//   auto result = format("The first value passed is {}, and the second is {}!"s,
+//                        42, "foo");
+//
+template<typename CharT, typename... ValueTs>
+std::basic_string<CharT> format(std::basic_string<CharT> const & format_str, ValueTs... elements)
 {
   std::basic_string<CharT> result;
   format_it(std::back_inserter(result), format_str.begin(), format_str.end(), elements...);
@@ -694,26 +881,98 @@ std::basic_string<CharT> format(std::basic_string<CharT> const & format_str, Ele
 }
 
 
-template<typename CharT, typename... ElementTypes>
-std::basic_string<CharT> format(CharT const* format_str, ElementTypes... elements)
+// Convenience function wrapper for format_it that allows formatting a format
+// string and values directly into a string and returning that.
+// (C string variant)
+//
+// Template parameters:
+//   CharT       Character type to generate in the output string.
+//   ValueTs     Types of the values to be formatted.
+//
+// Parameters:
+//   format_str  Format string to be used when formatting the string. It will
+//               be passed to format_it directly.
+//   elements    The elements to be formatted. They are passed to format_it
+//               verbatim.
+//
+// Return value:
+//   The formatted string.
+//
+// Usage example:
+//
+//   auto result = format("The first value passed is {}, and the second is {}!",
+//                        42, "foo");
+//
+template<typename CharT, typename... ValueTs>
+std::basic_string<CharT> format(CharT const* format_str, ValueTs... elements)
 {
   return format(std::basic_string<CharT>(format_str), elements...);
 }
 
 
-// Allows output formatting string directly to ostream, without extra buffering
-template<typename CharT, typename Traits, typename... ElementTypes>
-void format(std::basic_ostream<CharT, Traits> &ostream, std::basic_string<CharT> const& format_str, ElementTypes... elements)
+// Convenience function wrapper for format_it that allows formatting a format
+// string and values directly to an ostream.
+//
+// Template parameters:
+//   CharT       Character type to generate in the output string.
+//   Traits      Character traits to be used on the stream.
+//   ValueTs     Types of the values to be formatted.
+//
+// Parameters:
+//   ostream     Stream to write the resulting string to.
+//   format_str  Format string to be used when formatting the string. It will
+//               be passed to format_it directly.
+//   elements    The elements to be formatted. They are passed to format_it
+//               verbatim.
+//
+// Return value:
+//   The ostream that was passed in.
+//
+// Usage example:
+//
+//   format(std::cout, "The first value passed is {}, and the second is {}!"s,
+//          42, "foo");
+//
+template<typename CharT, typename Traits, typename... ValueTs>
+std::basic_ostream<CharT, Traits>& format(
+  std::basic_ostream<CharT, Traits> &ostream, std::basic_string<CharT> const& format_str, ValueTs... elements)
 {
   format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(), format_str.end(), elements...);
+  return ostream;
 }
 
 
-template<typename CharT, typename Traits, typename... ElementTypes>
-void format(std::basic_ostream<CharT, Traits> &ostream, CharT const* format_str, ElementTypes... elements)
+// Convenience function wrapper for format_it that allows formatting a format
+// string and values directly to an ostream. (C string variant)
+//
+// Template parameters:
+//   CharT       Character type to generate in the output string.
+//   Traits      Character traits to be used on the stream.
+//   ValueTs     Types of the values to be formatted.
+//
+// Parameters:
+//   ostream     Stream to write the resulting string to.
+//   format_str  Format string to be used when formatting the string. It will
+//               be passed to format_it directly.
+//   elements    The elements to be formatted. They are passed to format_it
+//               verbatim.
+//
+// Return value:
+//   The ostream that was passed in.
+//
+// Usage example:
+//
+//   format(std::cout, "The first value passed is {}, and the second is {}!"s,
+//          42, "foo");
+//
+template<typename CharT, typename Traits, typename... ValueTs>
+std::basic_ostream<CharT, Traits>& format(
+  std::basic_ostream<CharT, Traits> &ostream, CharT const* format_str, ValueTs... elements)
 {
   format(ostream, std::basic_string<CharT>(format_str), elements...);
+  return ostream;
 }
+
 
 }
 

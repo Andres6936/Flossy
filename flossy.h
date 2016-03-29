@@ -823,7 +823,7 @@ format_element(OutIt out, conversion_options options, ValueT value)
 //   ostream_iterator, which can be very useful.
 //
 template<typename OutIt, typename InputIt, typename FirstValueT, typename... ValueTs>
-OutIt format_it(OutIt out, InputIt start, InputIt const end, FirstValueT const& first, ValueTs... elements)
+OutIt format_it(OutIt out, InputIt start, InputIt const end, FirstValueT const& first, ValueTs&&... elements)
 {
   // Copy everything from start to the beginning of the first "real" (i.e. not '{{') conversion
   // specifier to out, transforming {{ into { appropriately.
@@ -838,7 +838,7 @@ OutIt format_it(OutIt out, InputIt start, InputIt const end, FirstValueT const& 
       if(*start != '{') {
         auto const options = option_reader<InputIt>(start, end).options;
         format_element<typename std::iterator_traits<InputIt>::value_type>(out, options, first);
-        return format_it(out, start, end, elements...);
+        return format_it(out, start, end, std::forward<ValueTs>(elements)...);
       }
 
       c = '{';
@@ -873,10 +873,10 @@ OutIt format_it(OutIt out, InputIt start, InputIt const end, FirstValueT const& 
 //                        42, "foo");
 //
 template<typename CharT, typename... ValueTs>
-std::basic_string<CharT> format(std::basic_string<CharT> const & format_str, ValueTs... elements)
+std::basic_string<CharT> format(std::basic_string<CharT> const & format_str, ValueTs&&... elements)
 {
   std::basic_string<CharT> result;
-  format_it(std::back_inserter(result), format_str.begin(), format_str.end(), elements...);
+  format_it(std::back_inserter(result), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
   return result;
 }
 
@@ -904,9 +904,9 @@ std::basic_string<CharT> format(std::basic_string<CharT> const & format_str, Val
 //                        42, "foo");
 //
 template<typename CharT, typename... ValueTs>
-std::basic_string<CharT> format(CharT const* format_str, ValueTs... elements)
+std::basic_string<CharT> format(CharT const* format_str, ValueTs&&... elements)
 {
-  return format(std::basic_string<CharT>(format_str), elements...);
+  return format(std::basic_string<CharT>(format_str), std::forward<ValueTs>(elements)...);
 }
 
 
@@ -935,9 +935,9 @@ std::basic_string<CharT> format(CharT const* format_str, ValueTs... elements)
 //
 template<typename CharT, typename Traits, typename... ValueTs>
 std::basic_ostream<CharT, Traits>& format(
-  std::basic_ostream<CharT, Traits> &ostream, std::basic_string<CharT> const& format_str, ValueTs... elements)
+  std::basic_ostream<CharT, Traits> &ostream, std::basic_string<CharT> const& format_str, ValueTs&&... elements)
 {
-  format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(), format_str.end(), elements...);
+  format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
   return ostream;
 }
 
@@ -967,9 +967,9 @@ std::basic_ostream<CharT, Traits>& format(
 //
 template<typename CharT, typename Traits, typename... ValueTs>
 std::basic_ostream<CharT, Traits>& format(
-  std::basic_ostream<CharT, Traits> &ostream, CharT const* format_str, ValueTs... elements)
+  std::basic_ostream<CharT, Traits> &ostream, CharT const* format_str, ValueTs&&... elements)
 {
-  format(ostream, std::basic_string<CharT>(format_str), elements...);
+  format(ostream, std::basic_string<CharT>(format_str), std::forward<ValueTs>(elements)...);
   return ostream;
 }
 

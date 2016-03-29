@@ -36,12 +36,12 @@ void assert_equal(std::string description, std::basic_string<CharT> expect, std:
 // Use char-based strings for expect and format, we'll widen them appropriately.
 // This allows writing the test cases in a simpler way.
 template<typename CharT, typename... Args>
-void test_format_it(std::string expect, std::string format, Args... args) {
+void test_format_it(std::string expect, std::string format, Args&&... args) {
   auto conv_expect = cheaty_cast_string<CharT>(expect);
   auto conv_format = cheaty_cast_string<CharT>(format);
 
   std::basic_string<CharT> output;
-  flossy::format_it(std::back_inserter(output), conv_format.begin(), conv_format.end(), args...);
+  flossy::format_it(std::back_inserter(output), conv_format.begin(), conv_format.end(), std::forward<Args>(args)...);
   assert_equal("Format string (" + format + ")", conv_expect, output);
 }
 
@@ -489,6 +489,11 @@ void run_tests() {
 struct test_struct {
   int a;
   int b;
+
+  // Disallow copying and moving to make sure forwarding works
+  // (will fail to compile if we messed up the forwarding).
+  test_struct(test_struct const&) = delete;
+  test_struct(test_struct&&) = delete;
 };
 
 template<typename CharT, typename OutIt>
@@ -498,6 +503,7 @@ OutIt format_element(OutIt out, flossy::conversion_options options, test_struct 
   out = flossy::format_element<CharT>(out, flossy::conversion_format::normal, value.b);
   return out;
 }
+
 
 int main() {
   run_tests<char>();
@@ -525,7 +531,6 @@ int main() {
   test_struct test { 42, 1337 };
   test_format_it<char>("42-1337", "{}", test);
   test_format_it<wchar_t>("42-1337", "{}", test);
-
 
   std::cout << "Performed " << testcount << " tests, " << (testcount - failed) << " passed, " << failed << " failed." << std::endl;
 }

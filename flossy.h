@@ -219,6 +219,7 @@
 #include <cstdint>
 #include <limits>
 #include <cmath>
+#include <vector>
 
 
 namespace flossy {

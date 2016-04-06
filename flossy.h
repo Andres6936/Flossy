@@ -306,19 +306,19 @@ namespace {
   class option_reader {
     typedef typename std::iterator_traits<InputIt>::value_type char_type;
 
-    const std::initializer_list<std::pair<char_type, fill_alignment>> alignment_types {
+    const std::vector<std::pair<char_type, fill_alignment>> alignment_types {
       {'>', fill_alignment::left},
       {'_', fill_alignment::intern},
       {'<', fill_alignment::right}
     };
 
-    const std::initializer_list<std::pair<char_type, pos_sign_type>> sign_types {
+    const std::vector<std::pair<char_type, pos_sign_type>> sign_types {
       {'+', pos_sign_type::plus},
       {' ', pos_sign_type::space},
       {'-', pos_sign_type::none}
     };
 
-    const std::initializer_list<std::pair<char_type, conversion_format>> format_types {
+    const std::vector<std::pair<char_type, conversion_format>> format_types {
       {'b', conversion_format::binary},
       {'d', conversion_format::decimal},
       {'o', conversion_format::octal},
@@ -352,7 +352,7 @@ namespace {
 
     // Read a character from the input iterator, map it to one of the given values.
     template<typename ValueT>
-    inline void map_char(std::initializer_list<std::pair<char_type, ValueT>> const& values, ValueT &out)
+    inline void map_char(std::vector<std::pair<char_type, ValueT>> const& values, ValueT &out)
     {
       check_it();
       auto const c = *it;

@@ -216,7 +216,6 @@
 #include <exception>
 #include <algorithm>
 #include <sstream>
-#include <cassert>
 #include <cstdint>
 #include <limits>
 

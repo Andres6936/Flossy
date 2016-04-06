@@ -218,6 +218,7 @@
 #include <sstream>
 #include <cstdint>
 #include <limits>
+#include <cmath>
 
 
 namespace flossy {

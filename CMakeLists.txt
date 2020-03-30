@@ -1,8 +1,7 @@
-project(flossy)
-cmake_minimum_required(VERSION 3.4)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.4)
+PROJECT(Flossy)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -pedantic -Wall")
+SET(CMAKE_CXX_STANDARD 14)
 
-add_executable(flossy_test
-  flossy_test
-)
+INCLUDE_DIRECTORIES(Include)
+ADD_EXECUTABLE(FlossyTest Test/flossy_test.cpp)

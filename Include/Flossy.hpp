@@ -221,22 +221,13 @@
 #include <cmath>
 #include <vector>
 
-
 namespace flossy
 {
 
-	struct version_number
+	constexpr float getVersion()
 	{
-		int major;
-		int minor;
-	};
-
-
-	constexpr version_number version()
-	{
-		return { 1, 0 };
+		return 2020.4f;
 	}
-
 
 	class format_error : public std::invalid_argument
 	{

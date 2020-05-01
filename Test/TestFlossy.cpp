@@ -1,8 +1,8 @@
 #include <limits>
-#include <typeinfo>
 #include <string>
-#include "../Include/Flossy.hpp"
 #include <iostream>
+
+#include "Flossy/Flossy.hpp"
 
 int testcount = 0;
 int failed = 0;

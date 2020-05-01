@@ -8,7 +8,7 @@ Don't worry, no actual binaries will be generated if you should try and build it
 The command <SET_TARGET_PROPERTIES> is there because CMake will otherwise complain
 that it cannot infer the target language from .hpp files only.
 ]]
-ADD_LIBRARY(Flossy STATIC Include/Flossy.hpp)
+ADD_LIBRARY(Flossy STATIC Include/Flossy/Flossy.hpp)
 SET_TARGET_PROPERTIES(Flossy PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 17)
 
 INCLUDE_DIRECTORIES(Include)

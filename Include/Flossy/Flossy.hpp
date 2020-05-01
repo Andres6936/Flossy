@@ -224,7 +224,11 @@
 namespace flossy
 {
 
-	constexpr float getVersion()
+	/**
+	 * Function used for the client of library
+	 * @return Version of Flossy
+	 */
+	[[maybe_unused]] constexpr float getVersion()
 	{
 		return 2020.4f;
 	}

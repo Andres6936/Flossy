@@ -37,20 +37,6 @@ INSTALL(TARGETS Flossy
 INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/Include/ DESTINATION include)
 
 
-### Support to CPM (Content Package Manager)
-
-# This CMake allow ddd dependencies (Like Gradle, Maven, Pip, etc ...)
-# For more information see: https://github.com/TheLartians/CPM.cmake
-INCLUDE(CMakeModules/CPM.cmake)
-
-# Creating installable CMake scripts always requires a large amount
-# of boilerplate code to get things working. This small script should
-# simplify the CMake packaging process into a single, easy-to-use command.
-CPMADDPACKAGE(
-        NAME PackageProject.cmake
-        GITHUB_REPOSITORY TheLartians/PackageProject.cmake
-        VERSION 1.2
-)
 
 ### Support to Test
 

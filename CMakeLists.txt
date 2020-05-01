@@ -4,4 +4,4 @@ PROJECT(Flossy)
 SET(CMAKE_CXX_STANDARD 14)
 
 INCLUDE_DIRECTORIES(Include)
-ADD_EXECUTABLE(FlossyTest Test/flossy_test.cpp)
+ADD_EXECUTABLE(FlossyTest Test/TestFlossy.cpp)

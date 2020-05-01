@@ -1,7 +1,7 @@
 #include <limits>
 #include <typeinfo>
 #include <string>
-#include "../Include/flossy.h"
+#include "../Include/Flossy.hpp"
 #include <iostream>
 
 int testcount = 0;

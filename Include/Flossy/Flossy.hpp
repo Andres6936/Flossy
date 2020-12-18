@@ -822,9 +822,12 @@ namespace flossy
 			return std::copy(std::istreambuf_iterator<char>(buffer.rdbuf()), std::istreambuf_iterator<char>(), out);
 		};
 
-		bool const neg = std::signbit(value);
+		// The method std::signbit determines if the given floating point number arg is negative.
+		// Return value: true if arg is negative, false otherwise.
+		bool const isNegative = std::signbit(value);
+
 		return output_padded_with_sign<CharT>(out, out_func, buffer.tellp(), options,
-				sign_from_format(neg, options.pos_sign));
+				sign_from_format(isNegative, options.pos_sign));
 	}
 
 #elif FLOSSY_FLOAT_METHOD == FLOSSY_FLOAT_METHOD_FAST

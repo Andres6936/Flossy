@@ -810,22 +810,22 @@ namespace flossy
 		// Format as char string, convert to wider character types later (in std::copy).
 		// This works with char32_t, while using a basic_ostringstream<char32_t> doesn't.
 		// I did not investigate further, why it doesn't work. :)
-		std::stringstream sstr;
-		sstr.precision(options.precision);
-		sstr.flags(
+		std::stringstream buffer;
+		buffer.precision(options.precision);
+		buffer.flags(
 				options.format != conversion_format::scientific_float
 				? std::ios::fixed
 				: std::ios::scientific
 		);
-		sstr << std::abs(value);
+		buffer << std::abs(value);
 
 		auto out_func = [&]()
 		{
-			return std::copy(std::istreambuf_iterator<char>(sstr.rdbuf()), std::istreambuf_iterator<char>(), out);
+			return std::copy(std::istreambuf_iterator<char>(buffer.rdbuf()), std::istreambuf_iterator<char>(), out);
 		};
 
 		bool const neg = std::signbit(value);
-		return output_padded_with_sign<CharT>(out, out_func, sstr.tellp(), options,
+		return output_padded_with_sign<CharT>(out, out_func, buffer.tellp(), options,
 				sign_from_format(neg, options.pos_sign));
 	}
 

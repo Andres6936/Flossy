@@ -604,7 +604,7 @@ namespace flossy
 				fill_count = 0;
 			}
 
-			auto fill = options.zero_fill ? CharT('0') : CharT(' ');
+			const auto fill = options.zero_fill ? CharT('0') : CharT(' ');
 
 			if (options.alignment == fill_alignment::left)
 			{

@@ -652,17 +652,15 @@ namespace flossy
 			{
 				return sign_character::minus;
 			}
-			else
+
+			switch (pos)
 			{
-				switch (pos)
-				{
-				case pos_sign_type::plus:
-					return sign_character::plus;
-				case pos_sign_type::space:
-					return sign_character::space;
-				default:
-					return sign_character::none;
-				}
+			case pos_sign_type::plus:
+				return sign_character::plus;
+			case pos_sign_type::space:
+				return sign_character::space;
+			default:
+				return sign_character::none;
 			}
 		}
 

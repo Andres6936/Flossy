@@ -646,7 +646,7 @@ namespace flossy
 
 		// Get the sign character required to display the given sign with the given
 		// representation of positive numbers
-		constexpr sign_character sign_from_format(bool neg, pos_sign_type pos)
+		constexpr sign_character sign_from_format(const bool neg, const pos_sign_type pos)
 		{
 			if (neg)
 			{

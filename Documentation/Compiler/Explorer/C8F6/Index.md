@@ -11,11 +11,9 @@ int main()
 }
 ```
 
-Produce with the options: x86-64 gcc 10.2 - -std=c++17 -O
+Produce with the options: x86-64 gcc 10.2 - -std=c++17 -O3
 
 ```asm
-.LC2:
-.string "Hello World {}."
 main:
 push    rbp
 mov     edx, OFFSET FLAT:.LC2+15

@@ -936,9 +936,18 @@ namespace flossy
 	template<typename CharT, typename... ValueTs>
 	std::basic_string<CharT> format(std::basic_string_view<CharT> format_str, ValueTs&& ... elements)
 	{
-		std::basic_string<CharT> result;
-		format_it(std::back_inserter(result), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
-		return result;
+		// With this if-constexpr, We ensure that the code block will never be
+		// called with an empty argument list.
+		if constexpr (sizeof...(elements) > 0)
+		{
+			std::basic_string<CharT> result;
+			format_it(std::back_inserter(result), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
+			return result;
+		}
+		else
+		{
+			return format_str;
+		}
 	}
 
 
@@ -999,9 +1008,18 @@ namespace flossy
 			std::basic_ostream<CharT, Traits>& ostream, std::basic_string_view<CharT> format_str,
 			ValueTs&& ... elements)
 	{
-		format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(), format_str.end(),
-				std::forward<ValueTs>(elements)...);
-		return ostream;
+		// With this if-constexpr, We ensure that the code block will never be
+		// called with an empty argument list.
+		if constexpr (sizeof ... (elements) > 0)
+		{
+			format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(), format_str.end(),
+					std::forward<ValueTs>(elements)...);
+			return ostream;
+		}
+		else
+		{
+			return (ostream << format_str);
+		}
 	}
 
 

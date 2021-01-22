@@ -946,7 +946,8 @@ namespace flossy
 		}
 		else
 		{
-			return format_str;
+			// Convert the std::basic_string_view to std::base_string
+			return { format_str.begin(), format_str.end() };
 		}
 	}
 

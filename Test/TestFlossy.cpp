@@ -477,10 +477,26 @@ void test_multiple_formatters() {
   test_format_it<CharT>("AAfooXX42YYbarBB", "AA{}XX{}YY{}BB", cheaty_cast_string<CharT>("foo"), 42, cheaty_cast_string<CharT>("bar"));
 }
 
+template<typename CharT>
+void test_empty_var_arguments() {
+	test_format_it<CharT>("{}", "{}");
+	test_format_it<CharT>("{c}", "{c}");
+	test_format_it<CharT>("{s}", "{s}");
+	test_format_it<CharT>("{o}", "{o}");
+	test_format_it<CharT>("{x}", "{x}");
+	test_format_it<CharT>("{L}", "{L}");
+	test_format_it<CharT>("{10}", "{10}");
+	test_format_it<CharT>("{-10}", "{-10}");
+	test_format_it<CharT>("{{}}", "{{}}");
+	test_format_it<CharT>("{{}} {} {}", "{{}} {} {}");
+	test_format_it<CharT>("AA{}XX{}YY{}BB", "AA{}XX{}YY{}BB");
+}
+
 
 template<typename CharT>
 void run_tests() {
   // Test formatter function with iterators
+  test_empty_var_arguments<CharT>();
   test_basic_formatters<CharT>();
   test_multiple_formatters<CharT>();
 }

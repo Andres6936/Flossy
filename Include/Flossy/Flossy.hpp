@@ -211,15 +211,16 @@
 #define FLOSSY_FLOAT_METHOD_FAST    1 // not implemented, yet
 #define FLOSSY_FLOAT_METHOD_GRISU   2 // not implemented, yet
 
-#include <array>
-#include <iterator>
+#include <string_view>
 #include <exception>
 #include <algorithm>
+#include <iterator>
 #include <sstream>
 #include <cstdint>
 #include <limits>
-#include <cmath>
 #include <vector>
+#include <cmath>
+#include <array>
 
 namespace flossy
 {
@@ -736,7 +737,7 @@ namespace flossy
 
 	// String formatter for C++ strings
 	template<typename CharT, typename OutIt>
-	OutIt format_element(OutIt out, conversion_options const& options, std::basic_string<CharT> const& value)
+	OutIt format_element(OutIt out, conversion_options const& options, std::basic_string_view<CharT> value)
 	{
 		return format_string<CharT>(out, options, value.begin(), value.end());
 	}
@@ -933,7 +934,7 @@ namespace flossy
 	//                        42, "foo");
 	//
 	template<typename CharT, typename... ValueTs>
-	std::basic_string<CharT> format(std::basic_string<CharT> const& format_str, ValueTs&& ... elements)
+	std::basic_string<CharT> format(std::basic_string_view<CharT> format_str, ValueTs&& ... elements)
 	{
 		std::basic_string<CharT> result;
 		format_it(std::back_inserter(result), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
@@ -966,7 +967,7 @@ namespace flossy
 	template<typename CharT, typename... ValueTs>
 	std::basic_string<CharT> format(CharT const* format_str, ValueTs&& ... elements)
 	{
-		return format(std::basic_string<CharT>(format_str), std::forward<ValueTs>(elements)...);
+		return format(std::basic_string_view<CharT>(format_str), std::forward<ValueTs>(elements)...);
 	}
 
 
@@ -995,7 +996,7 @@ namespace flossy
 	//
 	template<typename CharT, typename Traits, typename... ValueTs>
 	std::basic_ostream<CharT, Traits>& format(
-			std::basic_ostream<CharT, Traits>& ostream, std::basic_string<CharT> const& format_str,
+			std::basic_ostream<CharT, Traits>& ostream, std::basic_string_view<CharT> format_str,
 			ValueTs&& ... elements)
 	{
 		format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(), format_str.end(),
@@ -1031,7 +1032,7 @@ namespace flossy
 	std::basic_ostream<CharT, Traits>& format(
 			std::basic_ostream<CharT, Traits>& ostream, CharT const* format_str, ValueTs&& ... elements)
 	{
-		format(ostream, std::basic_string<CharT>(format_str), std::forward<ValueTs>(elements)...);
+		format(ostream, std::basic_string_view<CharT>(format_str), std::forward<ValueTs>(elements)...);
 		return ostream;
 	}
 

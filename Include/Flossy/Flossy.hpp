@@ -951,6 +951,34 @@ namespace flossy
 		}
 	}
 
+	/**
+	 * The documentation of this method is the same that of: Basic Format String.
+	 *
+	 * Current the standard now allow the implicit conversion in the template
+	 * deduction process. Is needed added a overload for manage the
+	 * std::basic_string<Char> (aka. std::string, std::u32string, etc ...).
+	 *
+	 * Implicit conversion is not a part of the template deduction process.
+	 * References: https://stackoverflow.com/a/22848951
+	 */
+	template <typename CharT, typename ... ValueTs>
+	std::basic_string<CharT> format(const std::basic_string<CharT>& format_str, ValueTs&& ... elements)
+	{
+		// With this if-constexpr, We ensure that the code block will never be
+		// called with an empty argument list.
+		if constexpr (sizeof...(elements) > 0)
+		{
+			std::basic_string<CharT> result;
+			format_it(std::back_inserter(result), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
+			return result;
+		}
+		else
+		{
+			// Return the string without modifications.
+			return format_str;
+		}
+	}
+
 
 	// Convenience function wrapper for format_it that allows formatting a format
 	// string and values directly into a string and returning that.

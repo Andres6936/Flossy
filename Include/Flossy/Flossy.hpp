@@ -234,13 +234,6 @@ namespace flossy
 		return 2020.4f;
 	}
 
-	class format_error : public std::invalid_argument
-	{
-	public:
-		using std::invalid_argument::invalid_argument;
-	};
-
-
 	// Used only for types that allow different representations, i.e. not for
 	// strings.
 	enum class conversion_format
@@ -306,7 +299,7 @@ namespace flossy
 		{
 			if (a == b)
 			{
-				throw format_error("unterminated {");
+				throw std::invalid_argument("unterminated {");
 			}
 		}
 
@@ -460,7 +453,7 @@ namespace flossy
 				check_it();
 				if (*it != '}')
 				{
-					throw format_error("Invalid character in format string");
+					throw std::invalid_argument("Invalid character in format string");
 				}
 				++it;
 			}

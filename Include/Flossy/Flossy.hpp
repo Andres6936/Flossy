@@ -286,10 +286,13 @@ namespace flossy
 		bool zero_fill = false;
 
 		conversion_options(
-				conversion_format format = conversion_format::normal, int width = 0, int precision = 6,
-				fill_alignment align = fill_alignment::left, pos_sign_type pos_sign = pos_sign_type::none,
+				conversion_format format = conversion_format::normal, int width = 0,
+				int precision = 6,
+				fill_alignment align = fill_alignment::left,
+				pos_sign_type pos_sign = pos_sign_type::none,
 				bool zero_fill = false)
-				: format(format), width(width), precision(precision), alignment(align), pos_sign(pos_sign),
+				: format(format), width(width), precision(precision), alignment(align),
+				  pos_sign(pos_sign),
 				  zero_fill(zero_fill)
 		{
 		}
@@ -313,19 +316,22 @@ namespace flossy
 		{
 			typedef typename std::iterator_traits<InputIt>::value_type char_type;
 
-			const std::vector<std::pair<char_type, fill_alignment>> alignment_types{
+			// Observe the initialization of member variables.
+			// Reference: https://stackoverflow.com/a/27669457
+
+			const std::array<std::pair<char_type, fill_alignment>, 3> alignment_types{{
 					{ '>', fill_alignment::left },
 					{ '_', fill_alignment::intern },
 					{ '<', fill_alignment::right }
-			};
+			}};
 
-			const std::vector<std::pair<char_type, pos_sign_type>> sign_types{
+			const std::array<std::pair<char_type, pos_sign_type>, 3> sign_types{{
 					{ '+', pos_sign_type::plus },
 					{ ' ', pos_sign_type::space },
 					{ '-', pos_sign_type::none }
-			};
+			}};
 
-			const std::vector<std::pair<char_type, conversion_format>> format_types{
+			const std::array<std::pair<char_type, conversion_format>, 8> format_types{{
 					{ 'b', conversion_format::binary },
 					{ 'd', conversion_format::decimal },
 					{ 'o', conversion_format::octal },
@@ -334,7 +340,7 @@ namespace flossy
 					{ 'f', conversion_format::normal_float },
 					{ 's', conversion_format::string },
 					{ 'c', conversion_format::character }
-			};
+			}};
 
 			InputIt& it;
 			InputIt const end;
@@ -357,8 +363,9 @@ namespace flossy
 
 
 			// Read a character from the input iterator, map it to one of the given values.
-			template<typename ValueT>
-			inline void map_char(std::vector<std::pair<char_type, ValueT>> const& values, ValueT& out)
+			template<typename ValueT, std::size_t Number>
+			inline void
+			map_char(std::array<std::pair<char_type, ValueT>, Number> const& values, ValueT& out)
 			{
 				check_it();
 				auto const c = *it;
@@ -462,7 +469,8 @@ namespace flossy
 
 		// Output string with space padding on the appropriate side
 		template<typename CharT, typename OutIt, typename InputIt>
-		OutIt format_string(OutIt out, conversion_options const& options, InputIt start, InputIt end)
+		OutIt
+		format_string(OutIt out, conversion_options const& options, InputIt start, InputIt end)
 		{
 			int fill_count = options.width - (end - start);
 			if (fill_count < 0)
@@ -487,7 +495,8 @@ namespace flossy
 
 		// Digits for integer conversions
 		template<typename CharT>
-		constexpr CharT digit_chars[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e',
+		constexpr CharT digit_chars[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a',
+											'b', 'c', 'd', 'e',
 											'f' };
 
 
@@ -544,7 +553,8 @@ namespace flossy
 		template<typename CharT, typename ValueT>
 		digit_buffer<CharT> generate_digits(ValueT value, conversion_format const& format)
 		{
-			static_assert(std::is_unsigned<ValueT>::value, "ValueT must be unsigned in generate_digits");
+			static_assert(std::is_unsigned<ValueT>::value,
+					"ValueT must be unsigned in generate_digits");
 
 			digit_buffer<CharT> digits;
 
@@ -595,7 +605,8 @@ namespace flossy
 		// sign characters.
 		template<typename CharT, typename OutIt, typename DigitOutFunc>
 		OutIt output_padded_with_sign(
-				OutIt out, DigitOutFunc out_func, int digit_count, conversion_options const& options,
+				OutIt out, DigitOutFunc out_func, int digit_count,
+				conversion_options const& options,
 				sign_character sign)
 		{
 			int fill_count = options.width - digit_count - (sign == sign_character::none ? 0 : 1);
@@ -633,7 +644,8 @@ namespace flossy
 		// Format a decomposed integer with fill characters and sign
 		template<typename OutIt, typename CharT>
 		OutIt output_integer(
-				OutIt out, digit_buffer<CharT> const& digits, conversion_options const& options, sign_character sign)
+				OutIt out, digit_buffer<CharT> const& digits, conversion_options const& options,
+				sign_character sign)
 		{
 			auto out_func = [&]()
 			{
@@ -669,8 +681,10 @@ namespace flossy
 		// Format an unsigned integer without validity checks for given flags with
 		// given sign and options.
 		template<typename CharT, typename OutIt, typename ValueT>
-		typename std::enable_if<std::is_integral<ValueT>::value && std::is_unsigned<ValueT>::value, OutIt>::type
-		format_integer_unchecked(OutIt out, ValueT value, bool negative, conversion_options const& options)
+		typename std::enable_if<
+				std::is_integral<ValueT>::value && std::is_unsigned<ValueT>::value, OutIt>::type
+		format_integer_unchecked(OutIt out, ValueT value, bool negative,
+				conversion_options const& options)
 		{
 			// Special case: Conversion to character requested
 			if (options.format == conversion_format::character)
@@ -681,7 +695,8 @@ namespace flossy
 			{
 				digit_buffer<CharT> digits = generate_digits<CharT>(value, options.format);
 
-				out = output_integer(out, digits, options, sign_from_format(negative, options.pos_sign));
+				out = output_integer(out, digits, options,
+						sign_from_format(negative, options.pos_sign));
 
 			}
 
@@ -691,7 +706,8 @@ namespace flossy
 
 		// Format unsigned integer with checks for flag validity with given sign and options.
 		template<typename CharT, typename OutIt, typename ValueT>
-		typename std::enable_if<std::is_integral<ValueT>::value && std::is_unsigned<ValueT>::value, OutIt>::type
+		typename std::enable_if<
+				std::is_integral<ValueT>::value && std::is_unsigned<ValueT>::value, OutIt>::type
 		format_integer(OutIt out, ValueT value, bool negative, conversion_options options)
 		{
 			if (options.alignment != fill_alignment::intern)
@@ -737,7 +753,8 @@ namespace flossy
 
 	// String formatter for C++ strings
 	template<typename CharT, typename OutIt>
-	OutIt format_element(OutIt out, conversion_options const& options, std::basic_string_view<CharT> value)
+	OutIt format_element(OutIt out, conversion_options const& options,
+			std::basic_string_view<CharT> value)
 	{
 		return format_string<CharT>(out, options, value.begin(), value.end());
 	}
@@ -754,7 +771,8 @@ namespace flossy
 
 	// Formatter function for unsigned integers
 	template<typename CharT, typename OutIt, typename ValueT>
-	typename std::enable_if<std::is_integral<ValueT>::value && std::is_unsigned<ValueT>::value, OutIt>::type
+	typename std::enable_if<
+			std::is_integral<ValueT>::value && std::is_unsigned<ValueT>::value, OutIt>::type
 	format_element(OutIt out, conversion_options options, ValueT value)
 	{
 		return format_integer<CharT>(out, value, false, options);
@@ -765,12 +783,15 @@ namespace flossy
 	// an unsigned value if the requested conversion is _not_ decimal. For decimal,
 	// it passes the absolute value and sign bit appropriately
 	template<typename CharT, typename OutIt, typename ValueT>
-	typename std::enable_if<std::is_integral<ValueT>::value && std::is_signed<ValueT>::value, OutIt>::type
+	typename std::enable_if<
+			std::is_integral<ValueT>::value && std::is_signed<ValueT>::value, OutIt>::type
 	format_element(OutIt out, conversion_options options, ValueT value)
 	{
-		if (options.format != conversion_format::normal and options.format != conversion_format::decimal)
+		if (options.format != conversion_format::normal and
+			options.format != conversion_format::decimal)
 		{
-			return format_integer<CharT>(out, static_cast<typename std::make_unsigned<ValueT>::type>(value), false,
+			return format_integer<CharT>(out,
+					static_cast<typename std::make_unsigned<ValueT>::type>(value), false,
 					options);
 		}
 		else
@@ -820,7 +841,8 @@ namespace flossy
 
 		auto out_func = [&]()
 		{
-			return std::copy(std::istreambuf_iterator<char>(buffer.rdbuf()), std::istreambuf_iterator<char>(), out);
+			return std::copy(std::istreambuf_iterator<char>(buffer.rdbuf()),
+					std::istreambuf_iterator<char>(), out);
 		};
 
 		// The method std::signbit determines if the given floating point number arg is negative.
@@ -881,7 +903,8 @@ namespace flossy
 	//   ostream_iterator, which can be very useful.
 	//
 	template<typename OutIt, typename InputIt, typename FirstValueT, typename... ValueTs>
-	OutIt format_it(OutIt out, InputIt start, InputIt const end, FirstValueT const& first, ValueTs&& ... elements)
+	OutIt format_it(OutIt out, InputIt start, InputIt const end, FirstValueT const& first,
+			ValueTs&& ... elements)
 	{
 		// Copy everything from start to the beginning of the first "real" (i.e. not '{{') conversion
 		// specifier to out, transforming {{ into { appropriately.
@@ -898,7 +921,8 @@ namespace flossy
 				if (*start != '{')
 				{
 					auto const options = option_reader<InputIt>(start, end).options;
-					format_element<typename std::iterator_traits<InputIt>::value_type>(out, options, first);
+					format_element<typename std::iterator_traits<InputIt>::value_type>(out, options,
+							first);
 					return format_it(out, start, end, std::forward<ValueTs>(elements)...);
 				}
 
@@ -935,14 +959,16 @@ namespace flossy
 	 * @return The formatted string.
 	 */
 	template<typename CharT, typename... ValueTs>
-	std::basic_string<CharT> format(std::basic_string_view<CharT> format_str, ValueTs&& ... elements)
+	std::basic_string<CharT>
+	format(std::basic_string_view<CharT> format_str, ValueTs&& ... elements)
 	{
 		// With this if-constexpr, We ensure that the code block will never be
 		// called with an empty argument list.
 		if constexpr (sizeof...(elements) > 0)
 		{
 			std::basic_string<CharT> result;
-			format_it(std::back_inserter(result), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
+			format_it(std::back_inserter(result), format_str.begin(), format_str.end(),
+					std::forward<ValueTs>(elements)...);
 			return result;
 		}
 		else
@@ -965,15 +991,17 @@ namespace flossy
 	 * Implicit conversion is not a part of the template deduction process.
 	 * References: https://stackoverflow.com/a/22848951
 	 */
-	template <typename CharT, typename ... ValueTs>
-	std::basic_string<CharT> format(const std::basic_string<CharT>& format_str, ValueTs&& ... elements)
+	template<typename CharT, typename ... ValueTs>
+	std::basic_string<CharT>
+	format(const std::basic_string<CharT>& format_str, ValueTs&& ... elements)
 	{
 		// With this if-constexpr, We ensure that the code block will never be
 		// called with an empty argument list.
 		if constexpr (sizeof...(elements) > 0)
 		{
 			std::basic_string<CharT> result;
-			format_it(std::back_inserter(result), format_str.begin(), format_str.end(), std::forward<ValueTs>(elements)...);
+			format_it(std::back_inserter(result), format_str.begin(), format_str.end(),
+					std::forward<ValueTs>(elements)...);
 			return result;
 		}
 		else
@@ -994,7 +1022,8 @@ namespace flossy
 	template<typename CharT, typename... ValueTs>
 	std::basic_string<CharT> format(CharT const* format_str, ValueTs&& ... elements)
 	{
-		return format(std::basic_string_view<CharT>(format_str), std::forward<ValueTs>(elements)...);
+		return format(std::basic_string_view<CharT>(format_str),
+				std::forward<ValueTs>(elements)...);
 	}
 
 
@@ -1030,7 +1059,8 @@ namespace flossy
 		// called with an empty argument list.
 		if constexpr (sizeof ... (elements) > 0)
 		{
-			format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(), format_str.end(),
+			format_it(std::ostream_iterator<CharT, CharT>(ostream), format_str.begin(),
+					format_str.end(),
 					std::forward<ValueTs>(elements)...);
 			return ostream;
 		}
@@ -1066,9 +1096,11 @@ namespace flossy
 	//
 	template<typename CharT, typename Traits, typename... ValueTs>
 	std::basic_ostream<CharT, Traits>& format(
-			std::basic_ostream<CharT, Traits>& ostream, CharT const* format_str, ValueTs&& ... elements)
+			std::basic_ostream<CharT, Traits>& ostream, CharT const* format_str,
+			ValueTs&& ... elements)
 	{
-		format(ostream, std::basic_string_view<CharT>(format_str), std::forward<ValueTs>(elements)...);
+		format(ostream, std::basic_string_view<CharT>(format_str),
+				std::forward<ValueTs>(elements)...);
 		return ostream;
 	}
 

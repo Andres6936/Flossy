@@ -40,7 +40,5 @@ INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/Include/ DESTINATION include)
 
 ### Support to Test
 
-INCLUDE_DIRECTORIES(Include)
-
 ADD_EXECUTABLE(FlossyTest Test/TestFlossy.cpp)
 TARGET_LINK_LIBRARIES(FlossyTest PRIVATE Flossy)

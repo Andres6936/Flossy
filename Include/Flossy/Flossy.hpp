@@ -912,27 +912,28 @@ namespace flossy
 	}
 
 
-	// Convenience function wrapper for format_it that allows formatting a format
-	// string and values directly into a string and returning that.
-	//
-	// Template parameters:
-	//   CharT       Character type to generate in the output string.
-	//   ValueTs     Types of the values to be formatted.
-	//
-	// Parameters:
-	//   format_str  Format string to be used when formatting the string. It will
-	//               be passed to format_it directly.
-	//   elements    The elements to be formatted. They are passed to format_it
-	//               verbatim.
-	//
-	// Return value:
-	//   The formatted string.
-	//
-	// Usage example:
-	//
-	//   auto result = format("The first value passed is {}, and the second is {}!"s,
-	//                        42, "foo");
-	//
+	/**
+	 * @page Basic Format String.
+	 *
+	 * Convenience function wrapper for format_it that allows formatting a
+	 * format string and values directly into a string and returning that.
+	 *
+	 * @example
+	 * @code
+	 * auto result = format("The first value passed is {}, and the second is {}!"s,
+	 * 						42, "foo");
+	 * @endcode
+	 *
+	 * @tparam CharT Character type to generate in the output string.
+	 * @tparam ValueTs Types of the values to be formatted.
+	 *
+	 * @param format_str Format string to be used when formatting the string.
+	 * 	It will be passed to format_it directly.
+	 * @param elements The elements to be formatted. They are passed to
+	 * format_it verbatim.
+	 *
+	 * @return The formatted string.
+	 */
 	template<typename CharT, typename... ValueTs>
 	std::basic_string<CharT> format(std::basic_string_view<CharT> format_str, ValueTs&& ... elements)
 	{
@@ -952,7 +953,8 @@ namespace flossy
 	}
 
 	/**
-	 * The documentation of this method is the same that of: Basic Format String.
+	 * The documentation of this method is the same that of: Basic Format
+	 * String page.
 	 *
 	 * Current the standard now allow the implicit conversion in the template
 	 * deduction process. Is needed added a overload for manage the

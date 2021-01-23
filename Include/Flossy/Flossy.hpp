@@ -231,7 +231,7 @@ namespace flossy
 	 */
 	[[maybe_unused]] constexpr float get_version() noexcept
 	{
-		return 2020.4f;
+		return 2021.1f;
 	}
 
 	// Used only for types that allow different representations, i.e. not for

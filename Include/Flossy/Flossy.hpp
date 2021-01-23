@@ -229,7 +229,7 @@ namespace flossy
 	 * Function used for the client of library
 	 * @return Version of Flossy
 	 */
-	[[maybe_unused]] constexpr float getVersion()
+	[[maybe_unused]] constexpr float get_version() noexcept
 	{
 		return 2020.4f;
 	}

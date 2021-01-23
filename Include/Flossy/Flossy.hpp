@@ -953,6 +953,8 @@ namespace flossy
 	}
 
 	/**
+	 * @page Implicit Conversion in Template Deduction Process.
+	 *
 	 * The documentation of this method is the same that of: Basic Format
 	 * String page.
 	 *
@@ -982,28 +984,13 @@ namespace flossy
 	}
 
 
-	// Convenience function wrapper for format_it that allows formatting a format
-	// string and values directly into a string and returning that.
-	// (C string variant)
-	//
-	// Template parameters:
-	//   CharT       Character type to generate in the output string.
-	//   ValueTs     Types of the values to be formatted.
-	//
-	// Parameters:
-	//   format_str  Format string to be used when formatting the string. It will
-	//               be passed to format_it directly.
-	//   elements    The elements to be formatted. They are passed to format_it
-	//               verbatim.
-	//
-	// Return value:
-	//   The formatted string.
-	//
-	// Usage example:
-	//
-	//   auto result = format("The first value passed is {}, and the second is {}!",
-	//                        42, "foo");
-	//
+	/**
+	 * The documentation of this method is the same that of: Basic Format
+	 * String page.
+	 *
+	 * This method is overload for manage const char*. See the why is needed in
+	 * the Implicit Conversion in Template Deduction Process page.
+	 */
 	template<typename CharT, typename... ValueTs>
 	std::basic_string<CharT> format(CharT const* format_str, ValueTs&& ... elements)
 	{

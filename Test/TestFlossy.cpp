@@ -41,8 +41,9 @@ void test_format_it(std::string expect, std::string format, Args&&... args) {
   auto conv_format = cheaty_cast_string<CharT>(format);
 
   std::basic_string<CharT> output;
-  flossy::format_it(std::back_inserter(output), conv_format.begin(), conv_format.end(), std::forward<Args>(args)...);
-  assert_equal("Format string (" + format + ")", conv_expect, output);
+  flossy::internal::format_it(std::back_inserter(output), conv_format.begin(), conv_format.end(),
+		  std::forward<Args>(args)...);
+	assert_equal("Format string (" + format + ")", conv_expect, output);
 }
 
 
@@ -513,11 +514,16 @@ struct test_struct {
 };
 
 template<typename CharT, typename OutIt>
-OutIt format_element(OutIt out, flossy::conversion_options options, test_struct const& value) {
-  out = flossy::format_element<CharT>(out, flossy::conversion_format::normal, value.a);
-  out = flossy::format_element<CharT>(out, flossy::conversion_format::character, '-');
-  out = flossy::format_element<CharT>(out, flossy::conversion_format::normal, value.b);
-  return out;
+OutIt
+format_element(OutIt out, flossy::internal::conversion_options options, test_struct const& value)
+{
+	out = flossy::internal::format_element<CharT>(out, flossy::internal::conversion_format::normal,
+			value.a);
+	out = flossy::internal::format_element<CharT>(out,
+			flossy::internal::conversion_format::character, '-');
+	out = flossy::internal::format_element<CharT>(out, flossy::internal::conversion_format::normal,
+			value.b);
+	return out;
 }
 
 

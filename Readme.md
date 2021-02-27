@@ -159,8 +159,8 @@ There is currently no way to add your own conversion flags or options, sorry.
 
 ## Current State
 
-Flossy is fully usable and tested (compile and run `flossy_test.cpp` to make
-sure it works on your compiler).
+Flossy is fully usable and tested (compile and run `FlossyTest.cpp` to make sure
+it works on your compiler).
 
 At the moment, floats are formatted using an internal stringstream, which is
 probably not the fastest solution out there (at the very least, stringstreams

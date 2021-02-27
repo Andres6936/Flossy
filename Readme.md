@@ -1,17 +1,24 @@
 # Flossy
-Flossy is an easy to use but very flexible library to format strings in C++14 in a type safe way.
 
-It is loosely inspired by string formatting in Python, but stripped down in many places to allow making it type safe and faster.
+Flossy is an easy to use but very flexible library to format strings in C++17 in
+a type safe way.
+
+It is loosely inspired by string formatting in Python, but stripped down in many
+places to allow making it type safe and faster.
 
 ## Usage
+
 To use flossy, just include `flossy.h` in your C++ code:
 
 ```c++
-#include "flossy.h"
+#include
+"Flossy/Flossy.hpp"
 ```
 
-No linking or additional source files are needed. You will have to select C++14 mode on most compilers manually, though. This is done by passing the `-std=c++14` flag to your GCC or Clang compilers.
-
+No linking or additional source files are needed. You will have to select C++17
+mode on most compilers manually, though. This is done by passing
+the `-std=c++17`
+flag to your GCC or Clang compilers.
 
 The easiest way to use flossy is to format a string directly:
 
@@ -19,13 +26,15 @@ The easiest way to use flossy is to format a string directly:
 auto result = flossy::format("The first value passed is {}, and the second is {}!", 42, "foo");
 ```
 
-But often, you do not want to store the formatted string itself but rather want to output it directly to a stream:
+But often, you do not want to store the formatted string itself but rather want
+to output it directly to a stream:
 
 ```c++
 flossy::format(std::cout, "The first value passed is {}, and the second is {}!", 42, "foo");
 ```
 
-These functions are just wrappers around a more generic function though, which works on iterators of any kind:
+These functions are just wrappers around a more generic function though, which
+works on iterators of any kind:
 
 ```c++
 std::string result;
@@ -35,18 +44,23 @@ auto it = format_it(std::back_inserter(result), format_str.begin(), format_str.e
 
 Instead of `string` and  `back_inserter`, any kind of iterator will work.
 
-`format` and `format_it` work with any character type you want, as long as string arguments use the same character type:
+`format` and `format_it` work with any character type you want, as long as
+string arguments use the same character type:
+
 ```c++
 auto result = flossy::format(L"The first value passed is {}, and the second is {}!", 42, L"foo");
 ```
 
 ## Format Specification Language
 
-Inside the curly braces, a string format specification language inspired by Python is used.
+Inside the curly braces, a string format specification language inspired by
+Python is used.
 
-Format strings consist of any character sequence containing any number of conversion specifiers.
+Format strings consist of any character sequence containing any number of
+conversion specifiers.
 
-Conversion specifiers are delimited by curly braces containing the format specification:
+Conversion specifiers are delimited by curly braces containing the format
+specification:
 
 ```
   format: [align][sign][0][width][.precision][type]
@@ -57,7 +71,8 @@ Conversion specifiers are delimited by curly braces containing the format specif
   type: 'd', 'o', 'x', 'f', 'e', 's', 'b'
 ```
 
-`align` specifies where in the resulting field the value will be aligned, as described in the following table:
+`align` specifies where in the resulting field the value will be aligned, as
+described in the following table:
 
 |Option|Description|
 |---|---|
@@ -94,8 +109,9 @@ the following table:
   
 ## Formatting Custom Types
 
-Sometimes you may want to add a custom formatter for your own classes. Flossy is easily
-extensible by providing an appropriate formatting function template for your type.
+Sometimes you may want to add a custom formatter for your own classes. Flossy is
+easily extensible by providing an appropriate formatting function template for
+your type.
 
 To do that, you have to provide a templated function `format_element`, taking at
 least two template parameters and exactly three function parameters:
@@ -143,24 +159,33 @@ There is currently no way to add your own conversion flags or options, sorry.
 
 ## Current State
 
-Flossy is fully usable and tested (compile and run `flossy_test.cpp` to make sure it works on your compiler).
+Flossy is fully usable and tested (compile and run `flossy_test.cpp` to make
+sure it works on your compiler).
 
-At the moment, floats are formatted using an internal stringstream, which is probably not the fastest solution out there
-(at the very least, stringstreams use dynamic memory, which can cause unpredictable timing). 
+At the moment, floats are formatted using an internal stringstream, which is
+probably not the fastest solution out there (at the very least, stringstreams
+use dynamic memory, which can cause unpredictable timing).
 
-I plan to add two other implementations for floating point conversions, which will then be configurable through an optional
-macro definition. This is not done, yet, though. I plan to add an external library ([https://github.com/google/double-conversion])
-which you would have to compile and link into the rest of the program as one options, and a cheaty, imprecise but fast method of
-rounding floats to an integer of the required precision and outputting that one.
+I plan to add two other implementations for floating point conversions, which
+will then be configurable through an optional macro definition. This is not
+done, yet, though. I plan to add an external
+library ([https://github.com/google/double-conversion])
+which you would have to compile and link into the rest of the program as one
+options, and a cheaty, imprecise but fast method of rounding floats to an
+integer of the required precision and outputting that one.
 
-I had actually started stripping down the `double-conversion` library so it could be placed completely inside the `flossy.h` header file,
-but even the stripped-down version took around 1500 lines of code, more then the existing Flossy code base _including_ documentation.
+I had actually started stripping down the `double-conversion` library so it
+could be placed completely inside the `flossy.h` header file, but even the
+stripped-down version took around 1500 lines of code, more then the existing
+Flossy code base _including_ documentation.
 
 If you find and errors in Flossy, please let me know!
 
 ## Why "Flossy"?
 
-Good question! I asked a few friends for a name for a string formatting library and, [@martijnfrazer](https://twitter.com/martijnfrazer) suggested this name and I immediately loved it for the following reasons:
+Good question! I asked a few friends for a name for a string formatting library
+and, [@martijnfrazer](https://twitter.com/martijnfrazer) suggested this name and
+I immediately loved it for the following reasons:
 
 1. (Dental) floss is some kind of string.
 2. Flossy is FLOSS (Free/Libre Open Source Software)
@@ -170,4 +195,5 @@ I think it's the perfect name for this library.
 
 ## License
 
-Flossy is licensed under the MIT software license. See the header of `flossy.h` for the full license text.
+Flossy is licensed under the MIT software license. See the header of
+`Flossy.hpp` for the full license text.

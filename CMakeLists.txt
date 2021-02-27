@@ -2,6 +2,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.1 FATAL_ERROR)
 
 PROJECT(Flossy VERSION 2021.1 LANGUAGES CXX)
 
+OPTION(FLOSSY_BUILD_TESTING "Build test for the library" OFF)
+
 ### Support to Command <make install>
 
 # Must use GNUInstallDirs to install libraries into correct
@@ -36,9 +38,12 @@ INSTALL(TARGETS Flossy
 # This is for install the headers in correct location
 INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/Include/ DESTINATION include)
 
+IF (FLOSSY_BUILD_TESTING)
 
+    ### Support to Test
+    ENABLE_TESTING()
+    ADD_EXECUTABLE(FlossyTest Test/TestFlossy.cpp)
+    TARGET_LINK_LIBRARIES(FlossyTest PRIVATE Flossy)
+    ADD_TEST(NAME FlossyTest COMMAND FlossyTest)
 
-### Support to Test
-
-ADD_EXECUTABLE(FlossyTest Test/TestFlossy.cpp)
-TARGET_LINK_LIBRARIES(FlossyTest PRIVATE Flossy)
+ENDIF ()

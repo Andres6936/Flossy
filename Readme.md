@@ -151,9 +151,9 @@ There is currently no way to add your own conversion flags or options, sorry.
 
 ## What's in the Repository?
 
-* `flossy.h`: The full library. This is all you need to use flossy.
-* `README.md`: You're reading it right now.
-* `flossy_test.cpp`: A bunch of black box unit tests for Flossy.
+* `Flossy/Flossy.hpp`: The full library. This is all you need to use flossy.
+* `Readme.md`: You're reading it right now.
+* `FlossyTest.cpp`: A bunch of black box unit tests for Flossy.
 * `CMakeLists.txt`: Simple CMake project file that only compiles the unit tests.
 
 

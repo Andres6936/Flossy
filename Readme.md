@@ -8,7 +8,7 @@ places to allow making it type safe and faster.
 
 ## Usage
 
-To use flossy, just include `flossy.h` in your C++ code:
+To use flossy, just include `Flossy/Flossy.hpp` in your C++ code:
 
 ```c++
 #include
